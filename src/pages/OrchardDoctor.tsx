@@ -16,14 +16,16 @@
  *    - Map viewer field context comes from the grower's own fields
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Stethoscope, Video, Phone, MessageSquare, MapPin, Plus, Trash2,
   CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Send, FileText,
   Activity, User, Calendar, Leaf, Wrench, Bell, ArrowRight, X,
   RefreshCw, Smartphone, Building2, BadgeCheck, FlaskConical,
   ClipboardList, Zap, Loader2, UserPlus, ToggleLeft, ToggleRight,
+  TreePine, Sprout, LayoutGrid, Map,
 } from 'lucide-react';
+import type { GrowerFieldSummary } from '../lib/orchardDb';
 
 import { useOrchardDoctor } from '../hooks/useOrchardDoctor';
 import { useAuth } from '../contexts/AuthContext';
@@ -131,6 +133,353 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
       <AlertTriangle className="w-4 h-4 shrink-0" />
       <span className="flex-1">{message}</span>
       <button onClick={onDismiss}><X className="w-4 h-4" /></button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GROWER ORCHARD PANEL  (shown to doctors in the Patient Queue)
+═══════════════════════════════════════════════════════════════════════════ */
+
+function GrowerOrchardPanel({ field }: { field: GrowerFieldSummary }) {
+  const orchardType =
+    typeof field.details?.orchardType === 'string' ? field.details.orchardType : null;
+
+  const healthColor =
+    field.healthStatus === 'Excellent' ? 'text-green-700 bg-green-50 border-green-200'
+    : field.healthStatus === 'Good'    ? 'text-blue-700 bg-blue-50 border-blue-200'
+    : field.healthStatus === 'Fair'    ? 'text-yellow-700 bg-yellow-50 border-yellow-200'
+    : field.healthStatus === 'Poor'    ? 'text-red-700 bg-red-50 border-red-200'
+    : 'text-gray-600 bg-gray-50 border-gray-200';
+
+  return (
+    <div className="mt-3 border border-emerald-200 bg-emerald-50 rounded-xl p-4 space-y-3">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <div className="p-1.5 bg-emerald-100 rounded-lg">
+          <Leaf className="w-4 h-4 text-emerald-700" />
+        </div>
+        <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Farm Orchard Details</p>
+      </div>
+
+      {/* Primary info grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+        <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+          <p className="text-gray-400 font-semibold mb-0.5 uppercase" style={{ fontSize: '10px' }}>Field Name</p>
+          <p className="font-bold text-gray-800 truncate">{field.name}</p>
+        </div>
+
+        {field.location && (
+          <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100 flex items-start gap-1.5">
+            <MapPin className="w-3 h-3 text-gray-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-gray-400 font-semibold mb-0.5 uppercase" style={{ fontSize: '10px' }}>Location</p>
+              <p className="font-semibold text-gray-700 truncate">{field.location}</p>
+            </div>
+          </div>
+        )}
+
+        {field.area != null && (
+          <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+            <p className="text-gray-400 font-semibold mb-0.5 uppercase" style={{ fontSize: '10px' }}>Area</p>
+            <p className="font-bold text-gray-800">{field.area} kanal</p>
+          </div>
+        )}
+
+        {orchardType && (
+          <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+            <p className="text-gray-400 font-semibold mb-0.5 uppercase" style={{ fontSize: '10px' }}>Orchard Type</p>
+            <p className="font-semibold text-gray-700">{orchardType}</p>
+          </div>
+        )}
+
+        {field.soilType && (
+          <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+            <p className="text-gray-400 font-semibold mb-0.5 uppercase" style={{ fontSize: '10px' }}>Soil Type</p>
+            <p className="font-semibold text-gray-700">{field.soilType}</p>
+          </div>
+        )}
+
+        {field.cropStage && (
+          <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100 flex items-start gap-1.5">
+            <Sprout className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-gray-400 font-semibold mb-0.5 uppercase" style={{ fontSize: '10px' }}>Crop Stage</p>
+              <p className="font-semibold text-gray-700">{field.cropStage}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Health + Tree count row */}
+      <div className="flex flex-wrap items-center gap-2">
+        {field.healthStatus && (
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${healthColor}`}>
+            <CheckCircle2 className="w-3 h-3" />
+            Health: {field.healthStatus}
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border text-emerald-700 bg-emerald-50 border-emerald-200">
+          <TreePine className="w-3 h-3" />
+          {field.treeCount} Tagged Tree{field.treeCount !== 1 ? 's' : ''}
+        </span>
+        {field.boundaryPath && field.boundaryPath.length > 0 && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border text-blue-700 bg-blue-50 border-blue-200">
+            <LayoutGrid className="w-3 h-3" />
+            {field.boundaryPath.length}-pt boundary mapped
+          </span>
+        )}
+      </div>
+
+      {/* Varieties */}
+      {field.varieties.length > 0 && (
+        <div>
+          <p className="text-xs font-bold text-emerald-700 mb-1.5">Apple Varieties</p>
+          <div className="flex flex-wrap gap-1.5">
+            {field.varieties.map((v, i) => (
+              <span key={i} className="inline-flex items-center gap-1 bg-white border border-emerald-200 rounded-lg px-2 py-1 text-xs">
+                <span className="font-semibold text-gray-800">{v.varietyName}</span>
+                <span className="text-gray-400">· {v.totalTrees} trees</span>
+                {v.role !== 'main' && (
+                  <span className="text-emerald-600 font-medium">({v.role})</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {field.plantedDate && (
+        <p className="text-xs text-gray-500 flex items-center gap-1">
+          <Calendar className="w-3 h-3" /> Planted: {field.plantedDate}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORCHARD MAP MODAL  (doctor clicks "View Map" on a patient's field)
+═══════════════════════════════════════════════════════════════════════════ */
+
+function OrchardMapModal({
+  field,
+  growerName,
+  onClose,
+}: {
+  field: GrowerFieldSummary;
+  growerName: string;
+  onClose: () => void;
+}) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapsReady, setMapsReady] = useState(() => !!(window as any).google?.maps);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  // Load Google Maps SDK if not already present
+  useEffect(() => {
+    if ((window as any).google?.maps) { setMapsReady(true); return; }
+    const apiKey = (import.meta.env.VITE_GOOGLE_API_KEY as string | undefined) || '';
+    if (!apiKey) { setMapError('Google Maps API key not configured.'); return; }
+    const existing = document.querySelector('script[data-gm]');
+    if (existing) { existing.addEventListener('load', () => setMapsReady(true)); return; }
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+    s.async = true; s.defer = true; s.dataset.gm = '1';
+    s.onload = () => setMapsReady(true);
+    s.onerror = () => setMapError('Failed to load Google Maps.');
+    document.head.appendChild(s);
+  }, []);
+
+  // Initialise map once SDK is ready and modal div is mounted
+  useEffect(() => {
+    if (!mapsReady || !mapRef.current) return;
+    const G = (window as any).google.maps;
+
+    // Variety → colour (same palette as grower Dashboard)
+    const varietyPalette = ['#22c55e', '#f97316', '#3b82f6', '#e11d48', '#a855f7', '#14b8a6'];
+    const getVarietyColor = (variety: string) => {
+      if (!variety) return '#16a34a';
+      const hash = variety.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+      return varietyPalette[hash % varietyPalette.length];
+    };
+
+    // Determine center from boundary or coords
+    let center = { lat: 34.0837, lng: 74.7973 };
+    let zoom = 15;
+    if (field.boundaryPath && field.boundaryPath.length > 0) {
+      const lats = field.boundaryPath.map(p => p.lat);
+      const lngs = field.boundaryPath.map(p => p.lng);
+      center = {
+        lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+        lng: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+      };
+      zoom = 16;
+    } else if (field.latitude && field.longitude) {
+      center = { lat: field.latitude, lng: field.longitude };
+      zoom = 16;
+    }
+
+    const map = new G.Map(mapRef.current, {
+      center, zoom,
+      mapTypeId: 'satellite',
+      disableDefaultUI: false,
+      zoomControl: true,
+      fullscreenControl: true,
+    });
+
+    // Draw orchard boundary polygon
+    if (field.boundaryPath && field.boundaryPath.length > 2) {
+      const polygon = new G.Polygon({
+        paths: field.boundaryPath.map(p => ({ lat: p.lat, lng: p.lng })),
+        strokeColor: '#22c55e',
+        strokeOpacity: 0.95,
+        strokeWeight: 3,
+        fillColor: '#22c55e',
+        fillOpacity: 0.18,
+        map,
+      });
+      const bounds = new G.LatLngBounds();
+      field.boundaryPath.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
+      map.fitBounds(bounds);
+
+      // Info window on polygon click
+      const iw = new G.InfoWindow({
+        content: `<div style="padding:6px 8px;font-family:sans-serif">
+          <strong style="font-size:13px">${field.name}</strong><br/>
+          <span style="font-size:11px;color:#555">${field.location ?? ''}</span><br/>
+          <span style="font-size:11px;color:#555">Area: ${field.area ?? '—'} kanal · ${field.treeCount} trees</span>
+        </div>`,
+      });
+      polygon.addListener('click', (e: any) => {
+        iw.setPosition(e.latLng);
+        iw.open(map);
+      });
+    } else if (field.latitude && field.longitude) {
+      // Fallback: simple pin
+      new G.Marker({
+        position: { lat: field.latitude, lng: field.longitude },
+        map,
+        title: field.name,
+      });
+    }
+
+    // ── Tree tag markers ──────────────────────────────────────────────────
+    let activeTreeIw: any = null;
+    (field.treeTags ?? []).forEach(tag => {
+      const color = getVarietyColor(tag.variety);
+      // Same SVG tree icon as grower Dashboard
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">` +
+        `<circle cx="32" cy="24" r="18" fill="${color}"/>` +
+        `<rect x="28" y="36" width="8" height="18" fill="#8b5a2b"/>` +
+        `</svg>`;
+
+      const marker = new G.Marker({
+        position: { lat: tag.latitude, lng: tag.longitude },
+        map,
+        title: tag.name || 'Tree',
+        icon: {
+          url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+          scaledSize: new G.Size(28, 28),
+          anchor: new G.Point(14, 28),
+        },
+      });
+
+      marker.addListener('click', () => {
+        if (activeTreeIw) activeTreeIw.close();
+        activeTreeIw = new G.InfoWindow({
+          content: `<div style="min-width:130px;font-family:sans-serif;padding:4px">
+            <strong style="font-size:13px">${tag.name || 'Tree'}</strong><br/>
+            <span style="font-size:11px;color:#555">Variety: ${tag.variety || '—'}</span>
+          </div>`,
+        });
+        activeTreeIw.open(map, marker);
+      });
+    });
+  }, [mapsReady, field]);
+
+  const orchardType = typeof field.details?.orchardType === 'string' ? field.details.orchardType : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/10 rounded-xl">
+              <Map className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-white font-extrabold text-sm leading-tight">{field.name}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{growerName}'s Orchard · {field.location ?? ''}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Quick info strip */}
+        <div className="flex flex-wrap items-center gap-3 px-5 py-2.5 bg-emerald-50 border-b border-emerald-100 shrink-0 text-xs">
+          {orchardType && (
+            <span className="flex items-center gap-1 font-semibold text-emerald-800">
+              <Leaf className="w-3 h-3" />{orchardType}
+            </span>
+          )}
+          {field.soilType && (
+            <span className="text-gray-600">Soil: <strong>{field.soilType}</strong></span>
+          )}
+          {field.cropStage && (
+            <span className="flex items-center gap-1 text-gray-600">
+              <Sprout className="w-3 h-3 text-green-500" />{field.cropStage}
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+            <TreePine className="w-3 h-3" />{field.treeCount} trees
+          </span>
+          {field.area != null && (
+            <span className="text-gray-600">{field.area} kanal</span>
+          )}
+          {field.boundaryPath && field.boundaryPath.length > 0 && (
+            <span className="flex items-center gap-1 text-blue-700">
+              <LayoutGrid className="w-3 h-3" />{field.boundaryPath.length}-pt boundary
+            </span>
+          )}
+        </div>
+
+        {/* Map */}
+        <div className="relative flex-1 min-h-0" style={{ minHeight: 340 }}>
+          {mapError ? (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-red-600 bg-red-50">
+              <AlertTriangle className="w-4 h-4 mr-2" />{mapError}
+            </div>
+          ) : !mapsReady ? (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading map…</span>
+            </div>
+          ) : (
+            <div ref={mapRef} className="w-full h-full" style={{ minHeight: 340 }} />
+          )}
+        </div>
+
+        {/* Varieties footer */}
+        {field.varieties.length > 0 && (
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
+            <p className="text-xs font-bold text-gray-500 uppercase mb-1.5">Varieties</p>
+            <div className="flex flex-wrap gap-1.5">
+              {field.varieties.map((v, i) => (
+                <span key={i} className="inline-flex items-center gap-1 bg-white border border-emerald-200 rounded-lg px-2 py-1 text-xs">
+                  <span className="font-semibold text-gray-800">{v.varietyName}</span>
+                  <span className="text-gray-400">· {v.totalTrees} trees</span>
+                  {v.role !== 'main' && <span className="text-emerald-600 font-medium">({v.role})</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -680,6 +1029,7 @@ export default function OrchardDoctor({
   const [newDoctorId, setNewDoctorId] = useState('');
   const [showNewConsult, setShowNewConsult] = useState(false);
   const [builderConsult, setBuilderConsult] = useState<ConsultationRequest | null>(null);
+  const [mapModalConsult, setMapModalConsult] = useState<ConsultationRequest | null>(null);
   const [whatsAppRx, setWhatsAppRx]   = useState<DigitalPrescription | null>(null);
   const [localError, setLocalError]   = useState<string | null>(null);
 
@@ -757,6 +1107,13 @@ export default function OrchardDoctor({
           mutating={db.mutating}
           onIssue={handleIssueRx}
           onCancel={() => setBuilderConsult(null)}
+        />
+      )}
+      {mapModalConsult && db.growerFields[mapModalConsult.fieldId ?? ''] && (
+        <OrchardMapModal
+          field={db.growerFields[mapModalConsult.fieldId!]}
+          growerName={mapModalConsult.growerName}
+          onClose={() => setMapModalConsult(null)}
         />
       )}
 
@@ -944,54 +1301,80 @@ export default function OrchardDoctor({
                         const typeInfo   = CONSULT_TYPES.find(t => t.key === c.type)!;
                         const statusMeta = STATUS_META[c.status];
                         const TypeIcon   = typeInfo.icon;
+                        const growerField = c.fieldId ? db.growerFields[c.fieldId] : undefined;
                         return (
                           <SectionCard key={c.id}>
-                            <div className="px-5 py-4 flex items-start justify-between gap-4 flex-wrap">
-                              <div className="flex items-start gap-3">
-                                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${typeInfo.color}`}>
-                                  <TypeIcon className="w-4 h-4 text-white" />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-bold text-gray-800">{c.growerName}</p>
-                                    <Badge className={statusMeta.color}>
-                                      <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
-                                      {statusMeta.label}
-                                    </Badge>
+                            <div className="px-5 py-4">
+                              <div className="flex items-start justify-between gap-4 flex-wrap">
+                                <div className="flex items-start gap-3">
+                                  <div className={`p-2.5 rounded-xl bg-gradient-to-br ${typeInfo.color}`}>
+                                    <TypeIcon className="w-4 h-4 text-white" />
                                   </div>
-                                  <p className="text-xs text-gray-500 mt-0.5">
-                                    {typeInfo.label} · {new Date(c.targetDateTime).toLocaleString()}
-                                  </p>
-                                  <p className="text-xs text-gray-400 mt-0.5">Orchard: {c.orchardName}</p>
-                                  {c.notes && (
-                                    <p className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 mt-2 max-w-sm">{c.notes}</p>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="font-bold text-gray-800">{c.growerName}</p>
+                                      <Badge className={statusMeta.color}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                                        {statusMeta.label}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      {typeInfo.label} · {new Date(c.targetDateTime).toLocaleString()}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-0.5">Orchard: {c.orchardName}</p>
+                                    {c.growerPhone && (
+                                      <p className="text-xs text-gray-400 mt-0.5">Phone: {c.growerPhone}</p>
+                                    )}
+                                    {c.notes && (
+                                      <p className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 mt-2 max-w-sm">{c.notes}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {c.status === 'REQUESTED' && (
+                                    <button onClick={() => db.acceptRequest(c.id, db.myDoctorProfile!.id)} disabled={db.mutating}
+                                      className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
+                                      {db.mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                      Accept
+                                    </button>
+                                  )}
+                                  {c.status === 'IN_PROGRESS' && !c.prescription && (
+                                    <button onClick={() => setBuilderConsult(c)}
+                                      className="flex items-center gap-1.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow">
+                                      <FileText className="w-4 h-4" /> Write Prescription
+                                    </button>
+                                  )}
+                                  {c.prescription && (
+                                    <div className="flex items-center gap-2">
+                                      <Badge className={RX_STATUS_META[c.prescription.status].color}>Rx Issued</Badge>
+                                      <button onClick={() => setWhatsAppRx(c.prescription!)}
+                                        className="flex items-center gap-1.5 border border-teal-500 text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-50 transition">
+                                        <Smartphone className="w-3.5 h-3.5" /> WhatsApp
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {c.status === 'REQUESTED' && (
-                                  <button onClick={() => db.acceptRequest(c.id, db.myDoctorProfile!.id)} disabled={db.mutating}
-                                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
-                                    {db.mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                    Accept
-                                  </button>
-                                )}
-                                {c.status === 'IN_PROGRESS' && !c.prescription && (
-                                  <button onClick={() => setBuilderConsult(c)}
-                                    className="flex items-center gap-1.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow">
-                                    <FileText className="w-4 h-4" /> Write Prescription
-                                  </button>
-                                )}
-                                {c.prescription && (
-                                  <div className="flex items-center gap-2">
-                                    <Badge className={RX_STATUS_META[c.prescription.status].color}>Rx Issued</Badge>
-                                    <button onClick={() => setWhatsAppRx(c.prescription!)}
-                                      className="flex items-center gap-1.5 border border-teal-500 text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-50 transition">
-                                      <Smartphone className="w-3.5 h-3.5" /> WhatsApp
+
+                              {/* ── View Orchard Map button ── */}
+                              {c.fieldId && (
+                                <div className="mt-3">
+                                  {growerField ? (
+                                    <button
+                                      onClick={() => setMapModalConsult(c)}
+                                      className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm shadow-emerald-200"
+                                    >
+                                      <Map className="w-4 h-4" />
+                                      View Orchard Map
                                     </button>
-                                  </div>
-                                )}
-                              </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl px-3 py-2 w-fit">
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                      <span>Loading orchard…</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </SectionCard>
                         );

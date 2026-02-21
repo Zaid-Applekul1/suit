@@ -399,3 +399,103 @@ export async function updatePrescriptionStatus(
 
   if (error) throw new Error(`updatePrescriptionStatus: ${error.message}`);
 }
+
+/* ─────────────────────────────────────────────────────
+   FIELD ACCESS FOR DOCTORS
+───────────────────────────────────────────────────── */
+
+export interface GrowerTreeTag {
+  id: string;
+  name: string;
+  variety: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface GrowerFieldSummary {
+  id: string;
+  name: string;
+  area: number | null;
+  soilType: string | null;
+  cropStage: string | null;
+  healthStatus: string | null;
+  location: string | null;
+  plantedDate: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  boundaryPath: Array<{ lat: number; lng: number }> | null;
+  details: Record<string, unknown>;
+  treeCount: number;
+  treeTags: GrowerTreeTag[];
+  varieties: Array<{ varietyName: string; totalTrees: number; role: string }>;
+}
+
+/**
+ * Fetch a grower's field summary for a doctor.
+ * The doctor can only read this field because of the RLS policy
+ * "Doctors can read fields of their patients" (applied in
+ * 20260221_doctor_field_access.sql).
+ *
+ * Returns null if the field does not exist or the doctor has no access.
+ */
+export async function fetchFieldForDoctor(fieldId: string): Promise<GrowerFieldSummary | null> {
+  if (!fieldId) return null;
+
+  // Fetch field row
+  const { data: fieldRow, error: fieldErr } = await db
+    .from('fields')
+    .select('id, name, area, soil_type, crop_stage, health_status, location, planted_date, latitude, longitude, boundary_path, details')
+    .eq('id', fieldId)
+    .maybeSingle();
+
+  if (fieldErr) throw new Error(`fetchFieldForDoctor (field): ${fieldErr.message}`);
+  if (!fieldRow) return null;
+
+  // Fetch tree tag rows (lat/lng + metadata for map markers)
+  const { data: treeRows, error: treeErr } = await db
+    .from('tree_tags')
+    .select('id, name, variety, latitude, longitude')
+    .eq('field_id', fieldId);
+
+  if (treeErr) throw new Error(`fetchFieldForDoctor (trees): ${treeErr.message}`);
+
+  // Fetch varieties
+  const { data: varietyRows, error: varErr } = await db
+    .from('orchard_varieties')
+    .select('variety_name, total_trees, role')
+    .eq('field_id', fieldId);
+
+  if (varErr) throw new Error(`fetchFieldForDoctor (varieties): ${varErr.message}`);
+
+  const tags: GrowerTreeTag[] = ((treeRows ?? []) as any[])
+    .filter((t: any) => t.latitude != null && t.longitude != null)
+    .map((t: any) => ({
+      id: t.id,
+      name: t.name ?? '',
+      variety: t.variety ?? '',
+      latitude: Number(t.latitude),
+      longitude: Number(t.longitude),
+    }));
+
+  return {
+    id: fieldRow.id,
+    name: fieldRow.name,
+    area: fieldRow.area ?? null,
+    soilType: fieldRow.soil_type ?? null,
+    cropStage: fieldRow.crop_stage ?? null,
+    healthStatus: fieldRow.health_status ?? null,
+    location: fieldRow.location ?? null,
+    plantedDate: fieldRow.planted_date ?? null,
+    latitude: fieldRow.latitude ?? null,
+    longitude: fieldRow.longitude ?? null,
+    boundaryPath: Array.isArray(fieldRow.boundary_path) ? fieldRow.boundary_path : null,
+    details: (fieldRow.details as Record<string, unknown>) ?? {},
+    treeCount: tags.length,
+    treeTags: tags,
+    varieties: ((varietyRows ?? []) as any[]).map((v: any) => ({
+      varietyName: v.variety_name,
+      totalTrees: v.total_trees ?? 0,
+      role: v.role ?? 'main',
+    })),
+  };
+}

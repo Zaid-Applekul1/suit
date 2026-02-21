@@ -28,7 +28,9 @@ import {
   fetchDoctorByUserId,
   createDoctorProfile,
   updateDoctorProfile,
+  fetchFieldForDoctor,
 } from '../lib/orchardDb';
+import type { GrowerFieldSummary } from '../lib/orchardDb';
 import type { UserRole } from '../contexts/AuthContext';
 
 export type MutationState = 'idle' | 'loading' | 'error';
@@ -59,6 +61,9 @@ export function useOrchardDoctor(
   /* ── Doctor-mode: consultations assigned to this doctor ── */
   const [doctorConsultations, setDoctorConsultations] = useState<ConsultationRequest[]>([]);
   const [doctorConsultationsLoading, setDoctorConsultationsLoading] = useState(false);
+
+  /* ── Doctor-mode: grower field details keyed by field_id ── */
+  const [growerFields, setGrowerFields] = useState<Record<string, GrowerFieldSummary>>({});
 
   /* ── Load doctors list (always, growers need to pick) ── */
   const reloadDoctors = useCallback(async () => {
@@ -98,6 +103,24 @@ export function useOrchardDoctor(
     try {
       const rows = await fetchConsultationsForDoctor(doctorId);
       setDoctorConsultations(rows);
+
+      // Fetch field details for each unique field_id in the consultations
+      const uniqueFieldIds = [...new Set(rows.map(c => c.fieldId).filter(Boolean))];
+      const fieldEntries = await Promise.all(
+        uniqueFieldIds.map(async (fid) => {
+          try {
+            const field = await fetchFieldForDoctor(fid);
+            return field ? ([fid, field] as [string, GrowerFieldSummary]) : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const fieldMap: Record<string, GrowerFieldSummary> = {};
+      for (const entry of fieldEntries) {
+        if (entry) fieldMap[entry[0]] = entry[1];
+      }
+      setGrowerFields(fieldMap);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -290,5 +313,8 @@ export function useOrchardDoctor(
     doctorConsultations,
     doctorConsultationsLoading,
     reloadDoctorConsultations,
+
+    /* doctor-mode: grower field details keyed by field_id */
+    growerFields,
   };
 }
