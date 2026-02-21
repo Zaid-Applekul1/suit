@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   address text,
   language text DEFAULT 'en',
   currency text DEFAULT 'INR',
+  role text, -- Doctor or Grower
+  doctor_type text, -- Agronomist if Doctor
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

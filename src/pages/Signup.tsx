@@ -16,6 +16,8 @@ const Signup: React.FC = () => {
     address: '',
     language: 'en',
     currency: 'INR',
+    role: '', // Doctor or Grower
+    doctorType: '', // Agronomist if Doctor
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -68,6 +70,8 @@ const Signup: React.FC = () => {
         data: {
           name: formData.name,
           phone: formData.whatsapp,
+          role: formData.role,
+          doctorType: formData.role === 'Doctor' ? formData.doctorType : undefined,
         },
       },
     });
@@ -89,6 +93,8 @@ const Signup: React.FC = () => {
         address: formData.address,
         language: formData.language,
         currency: formData.currency,
+        role: formData.role,
+        doctor_type: formData.role === 'Doctor' ? formData.doctorType : null,
       });
 
       if (profileError) {
@@ -117,6 +123,43 @@ const Signup: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Role */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                Role <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="w-full pl-3 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                required
+              >
+                <option value="">Select Role</option>
+                <option value="Doctor">Doctor</option>
+                <option value="Grower">Grower</option>
+              </select>
+            </div>
+            {/* Doctor Type (if Doctor) */}
+            {formData.role === 'Doctor' && (
+              <div>
+                <label htmlFor="doctorType" className="block text-sm font-medium text-gray-700 mb-2">
+                  Doctor Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="doctorType"
+                  name="doctorType"
+                  value={formData.doctorType}
+                  onChange={handleChange}
+                  className="w-full pl-3 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                  required
+                >
+                  <option value="">Select Type</option>
+                  <option value="Agronomist">Agronomist</option>
+                </select>
+              </div>
+            )}
             {/* Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
