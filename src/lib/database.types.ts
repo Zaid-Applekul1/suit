@@ -28,18 +28,46 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['profiles']['Insert']>; // FIX: was missing closing >
+        Update: Partial<Database['public']['Tables']['profiles']['Insert']>;
       };
 
-      // FIX: consultations now has user_id + field_id + orchard_name (not orchard_id)
+      /**
+       * doctors — real doctor profiles created by users who register as doctors.
+       * user_id links to auth.users (1-to-1).
+       */
+      doctors: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          specialization: string;
+          hospital_name: string;
+          phone: string | null;
+          email: string | null;
+          bio: string | null;
+          rating: number;
+          available: boolean;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['doctors']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['doctors']['Insert']>;
+      };
+
+      // consultations.doctor_id now stores the UUID from doctors.id
       consultations: {
         Row: {
           id: string;
-          user_id: string;           // â† ADDED: required for RLS USING (auth.uid() = user_id)
+          user_id: string;
           grower_name: string;
           grower_phone: string;
-          field_id: string;          // â† was missing; replaces old orchard_id text column
-          orchard_name: string;      // â† ADDED: new column in updated schema
+          field_id: string;
+          orchard_name: string;
           doctor_id: string | null;
           type: ConsultType;
           status: ConsultStatus;
@@ -51,7 +79,7 @@ export interface Database {
           id?: string;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['consultations']['Insert']>; // FIX: was missing closing >
+        Update: Partial<Database['public']['Tables']['consultations']['Insert']>;
       };
 
       prescriptions: {
@@ -76,14 +104,6 @@ export interface Database {
       };
 
       prescription_action_items: {
-              // Add view: field_analytics_view for type safety
-              field_analytics_view: {
-                Row: {
-                  id: string;
-                  user_id: string;
-                  name: string;
-                };
-              };
         Row: {
           id: string;
           prescription_id: string;
@@ -102,7 +122,7 @@ export interface Database {
   };
 }
 
-/* â”€â”€ Hydrated app-level types (with nested relations) â”€â”€ */
+/* ── Hydrated app-level types (with nested relations) ── */
 
 export interface ActionItem {
   id: string;
@@ -130,13 +150,29 @@ export interface ConsultationRequest {
   id: string;
   growerName: string;
   growerPhone: string;
-  fieldId: string;          // â† uuid FK to fields table
-  orchardName: string;      // â† display name of the orchard/field
+  fieldId: string;
+  orchardName: string;
   doctorId: string | null;
   type: ConsultType;
   status: ConsultStatus;
   targetDateTime: string;
   notes: string;
   prescription?: DigitalPrescription;
+  createdAt: string;
+}
+
+/** Real doctor profile from the `doctors` table */
+export interface DoctorProfile {
+  id: string;          // doctors.id (UUID)
+  userId: string;      // links to auth.users.id
+  name: string;
+  specialization: string;
+  hospitalName: string;
+  phone: string | null;
+  email: string | null;
+  bio: string | null;
+  rating: number;
+  available: boolean;
+  avatarUrl: string | null;
   createdAt: string;
 }

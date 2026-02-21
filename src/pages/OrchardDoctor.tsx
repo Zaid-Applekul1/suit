@@ -1,30 +1,23 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Stethoscope, Video, Phone, MessageSquare, MapPin, Plus, Trash2,
   CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Send, FileText,
   Activity, User, Calendar, Leaf, Wrench, Bell, ArrowRight, X,
   RefreshCw, Smartphone, Building2, BadgeCheck, FlaskConical,
-  ClipboardList, Zap, Loader2,
+  ClipboardList, Zap, Loader2, UserPlus, Edit2, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 
 import { useOrchardDoctor } from '../hooks/useOrchardDoctor';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import type {
   ConsultType, ConsultStatus, PrescriptionStatus, ActionCategory,
-  DigitalPrescription, ConsultationRequest, ActionItem,
+  DigitalPrescription, ConsultationRequest, ActionItem, DoctorProfile,
 } from '../lib/database.types';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MASTER DATA (static, doctor roster lives here until you have a doctors table)
+   STATIC REFERENCE DATA  (UI labels only — no fake doctor IDs)
 ═══════════════════════════════════════════════════════════════════════════ */
-
-const DOCTORS = [
-  { id: 'DR001', name: 'Dr. Arif Qureshi',  specialization: 'Plant Pathology',         hospital: 'Orchard Hospital Kashmir', rating: 4.9, available: true  },
-  { id: 'DR002', name: 'Dr. Sunita Mehta',  specialization: 'Entomology & Pest Mgmt',  hospital: 'Orchard Hospital Kashmir', rating: 4.8, available: true  },
-  { id: 'DR003', name: 'Dr. Ravi Sharma',   specialization: 'Soil & Nutrition',         hospital: 'Orchard Hospital Kashmir', rating: 4.7, available: false },
-];
-
-const HOSPITAL_NAME = 'Orchard Hospital Kashmir';
 
 const ACTION_CATEGORIES: { key: ActionCategory; label: string; color: string; icon: React.ElementType }[] = [
   { key: 'FUNGICIDE',   label: 'Fungicide',   color: 'text-purple-700 bg-purple-50 border-purple-200', icon: FlaskConical },
@@ -36,9 +29,9 @@ const ACTION_CATEGORIES: { key: ActionCategory; label: string; color: string; ic
 ];
 
 const CONSULT_TYPES: { key: ConsultType; label: string; icon: React.ElementType; color: string; desc: string }[] = [
-  { key: 'CHAT',         label: 'Chat',         icon: MessageSquare, color: 'from-sky-500 to-sky-600',       desc: 'Text consultation'  },
-  { key: 'CALL',         label: 'Voice Call',   icon: Phone,         color: 'from-green-500 to-green-600',   desc: 'Audio consultation' },
-  { key: 'VIDEO',        label: 'Video Call',   icon: Video,         color: 'from-violet-500 to-violet-600', desc: 'Live video session'  },
+  { key: 'CHAT',         label: 'Chat',         icon: MessageSquare, color: 'from-sky-500 to-sky-600',       desc: 'Text consultation'    },
+  { key: 'CALL',         label: 'Voice Call',   icon: Phone,         color: 'from-green-500 to-green-600',   desc: 'Audio consultation'   },
+  { key: 'VIDEO',        label: 'Video Call',   icon: Video,         color: 'from-violet-500 to-violet-600', desc: 'Live video session'   },
   { key: 'ONSITE_VISIT', label: 'Onsite Visit', icon: MapPin,        color: 'from-orange-500 to-orange-600', desc: 'Doctor visits orchard' },
 ];
 
@@ -115,7 +108,6 @@ function ActionItemBadge({ category }: { category: ActionCategory }) {
   );
 }
 
-/* Error toast */
 function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
     <div className="flex items-center gap-3 bg-red-50 border border-red-300 rounded-xl px-4 py-3 text-sm text-red-800">
@@ -123,6 +115,171 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
       <span className="flex-1">{message}</span>
       <button onClick={onDismiss}><X className="w-4 h-4" /></button>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOCTOR REGISTRATION FORM
+   Shown when the user enters Doctor portal but has no profile yet.
+═══════════════════════════════════════════════════════════════════════════ */
+
+function DoctorRegistrationForm({
+  mutating,
+  onRegister,
+}: {
+  mutating: boolean;
+  onRegister: (payload: {
+    name: string;
+    specialization: string;
+    hospitalName: string;
+    phone?: string;
+    email?: string;
+    bio?: string;
+  }) => void;
+}) {
+  const [name, setName]             = useState('');
+  const [spec, setSpec]             = useState('');
+  const [hospital, setHospital]     = useState('');
+  const [phone, setPhone]           = useState('');
+  const [email, setEmail]           = useState('');
+  const [bio, setBio]               = useState('');
+
+  const canSubmit = name.trim() && spec.trim() && hospital.trim() && !mutating;
+
+  return (
+    <div className="max-w-lg mx-auto">
+      <SectionCard>
+        <div className="bg-gradient-to-br from-slate-800 to-slate-700 px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-xl">
+              <UserPlus className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-white font-extrabold text-lg">Register as a Doctor</p>
+              <p className="text-slate-300 text-xs mt-0.5">Create your doctor profile to start receiving consultation requests</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Full Name *</label>
+              <input
+                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="Dr. Full Name"
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Specialization *</label>
+              <input
+                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="e.g. Plant Pathology"
+                value={spec}
+                onChange={e => setSpec(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1">Hospital / Clinic Name *</label>
+            <input
+              className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="e.g. Orchard Hospital Kashmir"
+              value={hospital}
+              onChange={e => setHospital(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Phone</label>
+              <input
+                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="+91 XXXXX XXXXX"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Email</label>
+              <input
+                type="email"
+                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="doctor@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1">Bio / About</label>
+            <textarea
+              rows={2}
+              className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="Brief description of your expertise..."
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+            />
+          </div>
+
+          <button
+            onClick={() => canSubmit && onRegister({ name, specialization: spec, hospitalName: hospital, phone: phone || undefined, email: email || undefined, bio: bio || undefined })}
+            disabled={!canSubmit}
+            className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white py-3 rounded-xl font-extrabold text-sm transition shadow-lg"
+          >
+            {mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
+            Create Doctor Profile
+          </button>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOCTOR PROFILE CARD  (shown at the top of the doctor portal)
+═══════════════════════════════════════════════════════════════════════════ */
+
+function DoctorProfileCard({
+  profile,
+  mutating,
+  onToggleAvailable,
+}: {
+  profile: DoctorProfile;
+  mutating: boolean;
+  onToggleAvailable: () => void;
+}) {
+  return (
+    <SectionCard>
+      <div className="px-5 py-4 flex items-center gap-4 flex-wrap">
+        <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
+          <Stethoscope className="w-7 h-7 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-extrabold text-gray-800 text-base truncate">{profile.name}</p>
+          <p className="text-sm text-gray-500 truncate">{profile.specialization} · {profile.hospitalName}</p>
+          {profile.phone && <p className="text-xs text-gray-400">{profile.phone}</p>}
+        </div>
+        <button
+          onClick={onToggleAvailable}
+          disabled={mutating}
+          title={profile.available ? 'Mark as Unavailable' : 'Mark as Available'}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm border transition disabled:opacity-50 ${
+            profile.available
+              ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+              : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {profile.available
+            ? <><ToggleRight className="w-4 h-4" />Available</>
+            : <><ToggleLeft className="w-4 h-4" />Unavailable</>}
+        </button>
+      </div>
+    </SectionCard>
   );
 }
 
@@ -218,14 +375,14 @@ function PrescriptionCard({
               <button
                 onClick={onExecute}
                 disabled={mutating}
-                className="flex items-center gap-2 bg-linear-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-200 transition"
+                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-200 transition"
               >
                 {mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                 Execute Prescription
               </button>
               <button
                 onClick={showWhatsApp}
-                className="flex items-center gap-2 bg-linear-to-r from-emerald-500 to-teal-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition"
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition"
               >
                 <Smartphone className="w-4 h-4" />View WhatsApp
               </button>
@@ -260,11 +417,11 @@ function PrescriptionCard({
    WHATSAPP PREVIEW MODAL
 ═══════════════════════════════════════════════════════════════════════════ */
 
-function WhatsAppModal({ message, onClose }: { message: string; onClose: () => void }) {
+function WhatsAppModal({ message, hospitalName, onClose }: { message: string; hospitalName: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="bg-linear-to-r from-green-600 to-teal-600 px-5 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-green-600 to-teal-600 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Smartphone className="w-5 h-5 text-white" />
             <span className="font-bold text-white">WhatsApp Preview</span>
@@ -280,7 +437,7 @@ function WhatsAppModal({ message, onClose }: { message: string; onClose: () => v
                 <Building2 className="w-4 h-4 text-white" />
               </div>
               <div>
-                <p className="text-white font-bold text-sm">{HOSPITAL_NAME}</p>
+                <p className="text-white font-bold text-sm">{hospitalName}</p>
                 <p className="text-teal-200 text-xs">Official Prescription</p>
               </div>
             </div>
@@ -308,10 +465,10 @@ function WhatsAppModal({ message, onClose }: { message: string; onClose: () => v
 ═══════════════════════════════════════════════════════════════════════════ */
 
 function PrescriptionBuilder({
-  consultation, doctorId, mutating, onIssue, onCancel,
+  consultation, doctor, mutating, onIssue, onCancel,
 }: {
   consultation: ConsultationRequest;
-  doctorId: string;
+  doctor: DoctorProfile;
   mutating: boolean;
   onIssue: (payload: {
     consultationId: string;
@@ -325,7 +482,6 @@ function PrescriptionBuilder({
   }) => void;
   onCancel: () => void;
 }) {
-  const doctor = DOCTORS.find(d => d.id === doctorId)!;
   const [issue, setIssue] = useState('');
   const [eppo, setEppo] = useState('');
   const [recommendation, setRecommendation] = useState('');
@@ -349,7 +505,7 @@ function PrescriptionBuilder({
     onIssue({
       consultationId: consultation.id,
       doctorName: doctor.name,
-      hospitalName: doctor.hospital,
+      hospitalName: doctor.hospitalName,
       issueDiagnosed: issue,
       eppoCode: eppo,
       recommendation,
@@ -363,14 +519,14 @@ function PrescriptionBuilder({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60">
       <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-screen overflow-y-auto">
-        <div className="bg-linear-to-r from-slate-800 to-slate-700 px-6 py-5 flex items-center justify-between sticky top-0 z-10">
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-5 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-xl">
               <Stethoscope className="w-5 h-5 text-white" />
             </div>
             <div>
               <p className="text-white font-extrabold">Prescription Builder</p>
-              <p className="text-slate-300 text-xs">{doctor.name} · {doctor.hospital}</p>
+              <p className="text-slate-300 text-xs">{doctor.name} · {doctor.hospitalName}</p>
             </div>
           </div>
           <button onClick={onCancel} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition">
@@ -508,7 +664,7 @@ function PrescriptionBuilder({
             <button
               onClick={handleIssue}
               disabled={!canIssue}
-              className="flex-1 flex items-center justify-center gap-2 bg-linear-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 disabled:opacity-40 text-white py-3 rounded-xl font-extrabold text-sm transition shadow-lg"
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 disabled:opacity-40 text-white py-3 rounded-xl font-extrabold text-sm transition shadow-lg"
             >
               {mutating
                 ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -546,15 +702,6 @@ interface OrchardDoctorProps {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MASTER DATA FIELDS (fallback for fieldId and orchardName if not provided as props)
-═══════════════════════════════════════════════════════════════════════════ */
-
-const FIELDS = [
-  { id: 'FIELD001', name: 'Demo Orchard 1' },
-  { id: 'FIELD002', name: 'Demo Orchard 2' },
-];
-
-/* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -565,19 +712,40 @@ export default function OrchardDoctor({
   orchardName: propOrchardName,
   onExpenseLog,
 }: OrchardDoctorProps) {
-  // Fallback to master data if props are missing
-  const fieldId = propFieldId || (FIELDS.length > 0 ? FIELDS[0].id : '');
-  const orchardName = propOrchardName || (FIELDS.length > 0 ? FIELDS[0].name : '');
-
   /* ── Auth ── */
   const { user } = useAuth();
   const userId = user?.id ?? '';
   const resolvedGrowerName  = growerName  || (user as any)?.name  || '';
   const resolvedGrowerPhone = growerPhone || (user as any)?.phone || '';
 
-  // All hooks called unconditionally BEFORE any early return (React rules of hooks).
-  // Pass empty string fallback; the hook's reload() guards with `if (!fieldId) return`.
-  const db = useOrchardDoctor(fieldId ?? '', userId, resolvedGrowerName, resolvedGrowerPhone);
+  /* ── Field selector state ── */
+  const [userFields, setUserFields] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedFieldId, setSelectedFieldId] = useState<string>(propFieldId ?? '');
+  const [selectedFieldName, setSelectedFieldName] = useState<string>(propOrchardName ?? '');
+  const [fieldsLoading, setFieldsLoading] = useState(!propFieldId);
+
+  useEffect(() => {
+    if (propFieldId || !userId) return;
+    setFieldsLoading(true);
+    supabase
+      .from('fields')
+      .select('id, name')
+      .eq('user_id', userId)
+      .then(({ data }) => {
+        const rows = (data ?? []) as Array<{ id: string; name: string }>;
+        setUserFields(rows);
+        if (rows.length > 0) {
+          setSelectedFieldId(rows[0].id);
+          setSelectedFieldName(rows[0].name);
+        }
+        setFieldsLoading(false);
+      });
+  }, [userId, propFieldId]);
+
+  const fieldId     = propFieldId    ?? selectedFieldId;
+  const orchardName = propOrchardName ?? selectedFieldName;
+
+  const db = useOrchardDoctor(fieldId, userId, resolvedGrowerName, resolvedGrowerPhone);
 
   /* ── Local UI state ── */
   const [portalMode, setPortalMode] = useState<'grower' | 'doctor'>('grower');
@@ -585,36 +753,27 @@ export default function OrchardDoctor({
   const [newType, setNewType]       = useState<ConsultType>('VIDEO');
   const [newDateTime, setNewDateTime] = useState(nowISO());
   const [newNotes, setNewNotes]     = useState('');
-  const [newDoctorId, setNewDoctorId] = useState('DR001');
+  const [newDoctorId, setNewDoctorId] = useState('');
   const [showNewConsult, setShowNewConsult] = useState(false);
   const [builderConsult, setBuilderConsult] = useState<ConsultationRequest | null>(null);
-  const [builderDoctorId, setBuilderDoctorId] = useState('DR001');
   const [whatsAppRx, setWhatsAppRx] = useState<DigitalPrescription | null>(null);
-  const [activeDoctorId, setActiveDoctorId] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Guard: fieldId is required to render; orchardName is optional
-  if (!fieldId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50 text-red-700 text-lg font-bold">
-        Error: No orchard selected. Please select an orchard before requesting a consultation.
-      </div>
-    );
-  }
+  // Default to first available doctor when doctors list loads
+  useEffect(() => {
+    if (!newDoctorId && db.doctors.length > 0) {
+      const first = db.doctors.find(d => d.available) ?? db.doctors[0];
+      setNewDoctorId(first.id);
+    }
+  }, [db.doctors, newDoctorId]);
 
   /* ── Dismiss combined error ── */
   const errorMsg = db.error || localError;
   const dismissError = () => { setLocalError(null); };
 
-  /* ── Doctor portal: assigned requests ── */
-  const doctorRequests = useMemo(
-    () => db.consultations.filter(c => c.doctorId === activeDoctorId),
-    [db.consultations, activeDoctorId]
-  );
-
   /* ── Submit new consultation ── */
   const handleRequestConsultation = async () => {
-    if (!newDateTime) return;
+    if (!newDateTime || !newDoctorId) return;
     await db.requestConsultation({
       doctorId: newDoctorId,
       type: newType,
@@ -632,8 +791,6 @@ export default function OrchardDoctor({
     await db.issueRx(payload);
     setBuilderConsult(null);
     setTab('prescriptions');
-    // auto-show WhatsApp preview for the newly issued prescription
-    // (re-fetch happened inside issueRx, find the new one)
     const fresh = db.allPrescriptions.find(rx => rx.consultationId === payload.consultationId);
     if (fresh) setWhatsAppRx(fresh);
   };
@@ -656,6 +813,9 @@ export default function OrchardDoctor({
     }
   };
 
+  /* ── Available doctors for grower picker ── */
+  const availableDoctors = useMemo(() => db.doctors.filter(d => d.available), [db.doctors]);
+
   /* ═══ RENDER ════════════════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen bg-gray-50">
@@ -664,14 +824,15 @@ export default function OrchardDoctor({
       {whatsAppRx && (
         <WhatsAppModal
           message={buildWhatsAppMessage(whatsAppRx, resolvedGrowerName, resolvedGrowerPhone)}
+          hospitalName={whatsAppRx.hospitalName}
           onClose={() => setWhatsAppRx(null)}
         />
       )}
 
-      {builderConsult && (
+      {builderConsult && db.myDoctorProfile && (
         <PrescriptionBuilder
           consultation={builderConsult}
-          doctorId={builderDoctorId}
+          doctor={db.myDoctorProfile}
           mutating={db.mutating}
           onIssue={handleIssueRx}
           onCancel={() => setBuilderConsult(null)}
@@ -679,7 +840,7 @@ export default function OrchardDoctor({
       )}
 
       {/* ═══ HEADER ══════════════════════════════════════════════════════ */}
-      <div className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-6 py-5 shadow-xl">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-6 py-5 shadow-xl">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/10 rounded-2xl">
@@ -693,11 +854,35 @@ export default function OrchardDoctor({
               <p className="text-slate-400 text-xs mt-0.5">
                 Telehealth & Agronomist Dispatch · Grower: {growerName}
               </p>
+              {!propFieldId && (
+                <div className="mt-2 flex items-center gap-2">
+                  {fieldsLoading ? (
+                    <span className="text-slate-400 text-xs flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Loading orchards…
+                    </span>
+                  ) : userFields.length === 0 ? (
+                    <span className="text-red-400 text-xs">No orchards found. Please create a field first.</span>
+                  ) : (
+                    <select
+                      value={selectedFieldId}
+                      onChange={e => {
+                        const chosen = userFields.find(f => f.id === e.target.value);
+                        setSelectedFieldId(e.target.value);
+                        setSelectedFieldName(chosen?.name ?? '');
+                      }}
+                      className="bg-white/10 border border-white/20 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/40"
+                    >
+                      {userFields.map(f => (
+                        <option key={f.id} value={f.id} className="text-slate-900 bg-white">{f.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Reload button */}
             <button
               onClick={db.reload}
               disabled={db.loading}
@@ -794,364 +979,468 @@ export default function OrchardDoctor({
           <ErrorBanner message={errorMsg} onDismiss={dismissError} />
         )}
 
-        {/* Global loading skeleton */}
-        {db.loading && (
+        {/* Field-fetch loading skeleton */}
+        {fieldsLoading && (
           <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Loading from Supabase...</span>
+            <span className="text-sm">Loading your orchards…</span>
           </div>
         )}
 
-        {!db.loading && (
+        {!fieldsLoading && !fieldId && (
+          <div className="text-center py-16 text-gray-500">
+            <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
+            <p className="text-sm font-medium">No orchard found. Please create an orchard in the Fields page first.</p>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════
+            DOCTOR PORTAL
+        ══════════════════════════════════════════════════════════════ */}
+        {portalMode === 'doctor' && (
           <>
-            {/* ═══ GROWER — REQUEST CONSULTATION ══════════════════════════ */}
-            {portalMode === 'grower' && tab === 'consult' && (
+            {/* Loading doctor profile */}
+            {db.myDoctorProfileLoading && (
+              <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Checking doctor profile…</span>
+              </div>
+            )}
+
+            {/* Not registered yet — show registration form */}
+            {!db.myDoctorProfileLoading && !db.myDoctorProfile && (
+              <DoctorRegistrationForm
+                mutating={db.mutating}
+                onRegister={db.registerAsDoctor}
+              />
+            )}
+
+            {/* Registered doctor — show dashboard */}
+            {!db.myDoctorProfileLoading && db.myDoctorProfile && (
               <div className="space-y-5">
-                <SectionCard>
-                  <div className="px-6 py-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h2 className="font-extrabold text-gray-800 text-base">Request a Consultation</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">Connect with a certified Agronomist instantly</p>
-                      </div>
-                      {!showNewConsult && (
+                {/* Profile card */}
+                <DoctorProfileCard
+                  profile={db.myDoctorProfile}
+                  mutating={db.mutating}
+                  onToggleAvailable={() =>
+                    db.updateMyDoctorProfile({ available: !db.myDoctorProfile!.available })
+                  }
+                />
+
+                {/* Patient Queue */}
+                {tab === 'consult' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-extrabold text-gray-800 text-base">Patient Queue</h2>
+                      <div className="flex items-center gap-2">
+                        <Badge className="text-slate-700 bg-slate-100 border-slate-300">
+                          {db.doctorConsultations.length} Request{db.doctorConsultations.length !== 1 ? 's' : ''}
+                        </Badge>
                         <button
-                          onClick={() => setShowNewConsult(true)}
-                          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow"
+                          onClick={() => db.reloadDoctorConsultations(db.myDoctorProfile!.id)}
+                          disabled={db.doctorConsultationsLoading}
+                          className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
                         >
-                          <Plus className="w-4 h-4" /> New Request
+                          <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${db.doctorConsultationsLoading ? 'animate-spin' : ''}`} />
                         </button>
-                      )}
-                    </div>
-
-                    {/* Consult type cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                      {CONSULT_TYPES.map(t => {
-                        const Icon = t.icon;
-                        const selected = newType === t.key;
-                        return (
-                          <button
-                            key={t.key}
-                            onClick={() => { setNewType(t.key); setShowNewConsult(true); }}
-                            className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 font-semibold text-sm transition ${
-                              selected
-                                ? `bg-linear-to-br ${t.color} text-white border-transparent shadow-lg -translate-y-1`
-                                : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            <Icon className={`w-6 h-6 ${selected ? 'text-white' : 'text-gray-500'}`} />
-                            <span>{t.label}</span>
-                            <span className={`text-xs ${selected ? 'text-white/75' : 'text-gray-400'}`}>{t.desc}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {showNewConsult && (
-                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4 mt-2">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-gray-500 block mb-1">Preferred Date & Time</label>
-                            <input
-                              type="datetime-local"
-                              className="border rounded-xl px-3 py-2.5 text-sm w-full"
-                              value={newDateTime}
-                              onChange={e => setNewDateTime(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 block mb-1">Select Doctor</label>
-                            <select
-                              className="border rounded-xl px-3 py-2.5 text-sm w-full bg-white"
-                              value={newDoctorId}
-                              onChange={e => setNewDoctorId(e.target.value)}
-                            >
-                              {DOCTORS.filter(d => d.available).map(d => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500 block mb-1">Describe the Issue</label>
-                          <textarea
-                            rows={2}
-                            className="border rounded-xl px-3 py-2.5 text-sm w-full"
-                            placeholder="Describe symptoms, affected area, urgency..."
-                            value={newNotes}
-                            onChange={e => setNewNotes(e.target.value)}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleRequestConsultation}
-                            disabled={db.mutating}
-                            className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-900 disabled:opacity-50 transition"
-                          >
-                            {db.mutating
-                              ? <Loader2 className="w-4 h-4 animate-spin" />
-                              : <Send className="w-4 h-4" />}
-                            Submit Request
-                          </button>
-                          <button
-                            onClick={() => setShowNewConsult(false)}
-                            className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
                       </div>
-                    )}
-                  </div>
-                </SectionCard>
+                    </div>
 
-                {/* My consultation requests */}
-                {db.consultations.length > 0 && (
-                  <SectionCard>
-                    <div className="px-6 py-5">
-                      <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-4">My Consultation Requests</h3>
-                      <div className="space-y-3">
-                        {db.consultations.map(c => {
-                          const doctor  = DOCTORS.find(d => d.id === c.doctorId);
-                          const typeInfo = CONSULT_TYPES.find(t => t.key === c.type)!;
-                          const statusMeta = STATUS_META[c.status];
-                          const TypeIcon = typeInfo.icon;
-                          return (
-                            <div key={c.id} className="flex items-start justify-between border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50 transition">
+                    {db.doctorConsultationsLoading ? (
+                      <div className="flex items-center justify-center py-8 text-gray-400 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      </div>
+                    ) : db.doctorConsultations.length === 0 ? (
+                      <div className="text-center py-16 text-gray-400">
+                        <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">No requests assigned to you yet.</p>
+                        <p className="text-xs mt-1 text-gray-300">Make sure your profile is set to Available.</p>
+                      </div>
+                    ) : (
+                      db.doctorConsultations.map(c => {
+                        const typeInfo   = CONSULT_TYPES.find(t => t.key === c.type)!;
+                        const statusMeta = STATUS_META[c.status];
+                        const TypeIcon   = typeInfo.icon;
+                        return (
+                          <SectionCard key={c.id}>
+                            <div className="px-5 py-4 flex items-start justify-between gap-4 flex-wrap">
                               <div className="flex items-start gap-3">
-                                <div className={`p-2.5 rounded-xl bg-linear-to-br ${typeInfo.color}`}> 
+                                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${typeInfo.color}`}>
                                   <TypeIcon className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                  <p className="font-bold text-sm text-gray-800">{typeInfo.label}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {new Date(c.targetDateTime).toLocaleString()} · {doctor?.name || 'Unassigned'}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-bold text-gray-800">{c.growerName}</p>
+                                    <Badge className={statusMeta.color}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                                      {statusMeta.label}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {typeInfo.label} · {new Date(c.targetDateTime).toLocaleString()}
                                   </p>
-                                  {c.notes && <p className="text-xs text-gray-600 mt-0.5 max-w-xs truncate">{c.notes}</p>}
-                                  {c.prescription && (
-                                    <button
-                                      onClick={() => setTab('prescriptions')}
-                                      className="mt-1 text-xs font-bold text-slate-700 underline flex items-center gap-1"
-                                    >
-                                      <FileText className="w-3 h-3" /> View Prescription
-                                    </button>
+                                  <p className="text-xs text-gray-400 mt-0.5">Orchard: {c.orchardName}</p>
+                                  {c.notes && (
+                                    <p className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 mt-2 max-w-sm">{c.notes}</p>
                                   )}
                                 </div>
                               </div>
-                              <Badge className={statusMeta.color}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
-                                {statusMeta.label}
-                              </Badge>
+
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {c.status === 'REQUESTED' && (
+                                  <button
+                                    onClick={() => db.acceptRequest(c.id, db.myDoctorProfile!.id)}
+                                    disabled={db.mutating}
+                                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
+                                  >
+                                    {db.mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                    Accept
+                                  </button>
+                                )}
+                                {c.status === 'IN_PROGRESS' && !c.prescription && (
+                                  <button
+                                    onClick={() => setBuilderConsult(c)}
+                                    className="flex items-center gap-1.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow"
+                                  >
+                                    <FileText className="w-4 h-4" /> Write Prescription
+                                  </button>
+                                )}
+                                {c.prescription && (
+                                  <div className="flex items-center gap-2">
+                                    <Badge className={RX_STATUS_META[c.prescription.status].color}>Rx Issued</Badge>
+                                    <button
+                                      onClick={() => setWhatsAppRx(c.prescription!)}
+                                      className="flex items-center gap-1.5 border border-teal-500 text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-50 transition"
+                                    >
+                                      <Smartphone className="w-3.5 h-3.5" /> WhatsApp
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </SectionCard>
+                          </SectionCard>
+                        );
+                      })
+                    )}
+                  </div>
                 )}
 
-                {db.consultations.length === 0 && (
-                  <div className="text-center py-16 text-gray-400">
-                    <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-medium">No consultations yet. Request your first one above.</p>
+                {/* Issued Prescriptions (doctor view) */}
+                {tab === 'prescriptions' && (
+                  <div className="space-y-4">
+                    <h2 className="font-extrabold text-gray-800 text-base">Issued Prescriptions</h2>
+                    {(() => {
+                      const doctorRxs = db.allPrescriptions.filter(
+                        rx => rx.doctorName === db.myDoctorProfile!.name
+                      );
+                      return doctorRxs.length === 0 ? (
+                        <div className="text-center py-16 text-gray-400">
+                          <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                          <p className="text-sm font-medium">No prescriptions issued yet.</p>
+                        </div>
+                      ) : (
+                        doctorRxs.map(rx => (
+                          <PrescriptionCard
+                            key={rx.id}
+                            rx={rx}
+                            mutating={db.mutating}
+                            onExecute={() => handleExecuteRx(rx)}
+                            onFlagCorrection={() => db.flagCorrection(rx.id)}
+                            showWhatsApp={() => setWhatsAppRx(rx)}
+                          />
+                        ))
+                      );
+                    })()}
                   </div>
                 )}
               </div>
             )}
+          </>
+        )}
 
-            {/* ═══ GROWER — MY PRESCRIPTIONS ═══════════════════════════ */}
-            {portalMode === 'grower' && tab === 'prescriptions' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-extrabold text-gray-800 text-base">My Digital Prescriptions</h2>
-                  <Badge className="text-gray-600 bg-gray-100 border-gray-200">{db.allPrescriptions.length} Total</Badge>
-                </div>
-
-                {db.allPrescriptions.length === 0 ? (
-                  <div className="text-center py-16 text-gray-400">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-medium">No prescriptions issued yet. Request a consultation first.</p>
-                  </div>
-                ) : (
-                  db.allPrescriptions.map(rx => (
-                    <PrescriptionCard
-                      key={rx.id}
-                      rx={rx}
-                      mutating={db.mutating}
-                      onExecute={() => handleExecuteRx(rx)}
-                      onFlagCorrection={() => db.flagCorrection(rx.id)}
-                      showWhatsApp={() => setWhatsAppRx(rx)}
-                    />
-                  ))
-                )}
+        {/* ══════════════════════════════════════════════════════════════
+            GROWER PORTAL
+        ══════════════════════════════════════════════════════════════ */}
+        {portalMode === 'grower' && !fieldsLoading && fieldId && (
+          <>
+            {/* Global loading skeleton */}
+            {db.loading && (
+              <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Loading from Supabase...</span>
               </div>
             )}
 
-            {/* ═══ GROWER — OUR DOCTORS ════════════════════════════════ */}
-            {portalMode === 'grower' && tab === 'doctors' && (
-              <div className="space-y-4">
-                <h2 className="font-extrabold text-gray-800 text-base">Certified Agronomists</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {DOCTORS.map(doctor => (
-                    <div key={doctor.id} className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
-                      <div className="bg-linear-to-br from-slate-700 to-slate-900 px-5 py-6 text-center">
-                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-                          <Stethoscope className="w-8 h-8 text-white" />
-                        </div>
-                        <p className="text-white font-extrabold">{doctor.name}</p>
-                        <p className="text-slate-300 text-xs mt-1">{doctor.specialization}</p>
-                      </div>
-                      <div className="px-5 py-4 space-y-3">
-                        <div className="flex items-center text-sm text-gray-500 gap-1">
-                          <Building2 className="w-3.5 h-3.5" />{doctor.hospital}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1 text-amber-500 text-sm font-bold">
-                            {'★'.repeat(Math.round(doctor.rating))}
-                            <span className="text-gray-600 font-normal ml-1">{doctor.rating}</span>
+            {!db.loading && (
+              <>
+                {/* ═══ GROWER — REQUEST CONSULTATION ══════════════════════════ */}
+                {tab === 'consult' && (
+                  <div className="space-y-5">
+                    <SectionCard>
+                      <div className="px-6 py-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h2 className="font-extrabold text-gray-800 text-base">Request a Consultation</h2>
+                            <p className="text-xs text-gray-500 mt-0.5">Connect with a certified Agronomist instantly</p>
                           </div>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${doctor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {doctor.available ? '● Available' : '○ Unavailable'}
-                          </span>
+                          {!showNewConsult && (
+                            <button
+                              onClick={() => setShowNewConsult(true)}
+                              disabled={availableDoctors.length === 0}
+                              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow disabled:opacity-40"
+                            >
+                              <Plus className="w-4 h-4" /> New Request
+                            </button>
+                          )}
                         </div>
-                        {doctor.available && (
-                          <button
-                            onClick={() => { setNewDoctorId(doctor.id); setTab('consult'); setShowNewConsult(true); }}
-                            className="w-full bg-slate-800 text-white py-2 rounded-xl text-sm font-bold hover:bg-slate-900 transition"
-                          >
-                            Request Consultation
-                          </button>
+
+                        {/* No doctors yet */}
+                        {!db.doctorsLoading && db.doctors.length === 0 && (
+                          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
+                            <Stethoscope className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">No doctors have registered yet.</p>
+                            <p className="text-xs mt-1">Doctors can sign up by switching to the Doctor portal.</p>
+                          </div>
                         )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* ═══ DOCTOR — PATIENT QUEUE ══════════════════════════════ */}
-            {portalMode === 'doctor' && tab === 'consult' && (
-              <div className="space-y-4">
-                <SectionCard>
-                  <div className="px-6 py-4 flex items-center gap-3 flex-wrap">
-                    <Stethoscope className="w-4 h-4 text-slate-600" />
-                    <span className="text-sm font-bold text-gray-700">Logged in as:</span>
-                    <select
-                      className="border rounded-xl px-3 py-2 text-sm bg-white font-semibold"
-                      value={activeDoctorId}
-                      onChange={e => setActiveDoctorId(e.target.value)}
-                    >
-                      {DOCTORS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  </div>
-                </SectionCard>
+                        {/* Consult type cards */}
+                        {db.doctors.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                            {CONSULT_TYPES.map(t => {
+                              const Icon = t.icon;
+                              const selected = newType === t.key;
+                              return (
+                                <button
+                                  key={t.key}
+                                  onClick={() => { setNewType(t.key); setShowNewConsult(true); }}
+                                  className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 font-semibold text-sm transition ${
+                                    selected
+                                      ? `bg-gradient-to-br ${t.color} text-white border-transparent shadow-lg -translate-y-1`
+                                      : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <Icon className={`w-6 h-6 ${selected ? 'text-white' : 'text-gray-500'}`} />
+                                  <span>{t.label}</span>
+                                  <span className={`text-xs ${selected ? 'text-white/75' : 'text-gray-400'}`}>{t.desc}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                <div className="flex items-center justify-between">
-                  <h2 className="font-extrabold text-gray-800 text-base">Patient Queue</h2>
-                  <Badge className="text-slate-700 bg-slate-100 border-slate-300">
-                    {doctorRequests.length} Request{doctorRequests.length !== 1 ? 's' : ''}
-                  </Badge>
-                </div>
-
-                {doctorRequests.length === 0 ? (
-                  <div className="text-center py-16 text-gray-400">
-                    <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-medium">No requests assigned to this doctor.</p>
-                  </div>
-                ) : (
-                  doctorRequests.map(c => {
-                    const typeInfo  = CONSULT_TYPES.find(t => t.key === c.type)!;
-                    const statusMeta = STATUS_META[c.status];
-                    const TypeIcon  = typeInfo.icon;
-                    return (
-                      <SectionCard key={c.id}>
-                        <div className="px-5 py-4 flex items-start justify-between gap-4 flex-wrap">
-                          <div className="flex items-start gap-3">
-                            <div className={`p-2.5 rounded-xl bg-linear-to-br ${typeInfo.color}`}> 
-                              <TypeIcon className="w-4 h-4 text-white" />
+                        {showNewConsult && (
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4 mt-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs text-gray-500 block mb-1">Preferred Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  className="border rounded-xl px-3 py-2.5 text-sm w-full"
+                                  value={newDateTime}
+                                  onChange={e => setNewDateTime(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-500 block mb-1">Select Doctor</label>
+                                {db.doctorsLoading ? (
+                                  <div className="flex items-center gap-2 text-gray-400 text-sm py-2.5">
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Loading doctors…
+                                  </div>
+                                ) : availableDoctors.length === 0 ? (
+                                  <p className="text-red-500 text-xs py-2.5">No doctors available right now.</p>
+                                ) : (
+                                  <select
+                                    className="border rounded-xl px-3 py-2.5 text-sm w-full bg-white"
+                                    value={newDoctorId}
+                                    onChange={e => setNewDoctorId(e.target.value)}
+                                  >
+                                    {availableDoctors.map(d => (
+                                      <option key={d.id} value={d.id}>
+                                        {d.name} — {d.specialization}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
                             </div>
                             <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-bold text-gray-800">{c.growerName}</p>
-                                <Badge className={statusMeta.color}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
-                                  {statusMeta.label}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {typeInfo.label} · {new Date(c.targetDateTime).toLocaleString()}
-                              </p>
-                              {c.notes && (
-                                <p className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 mt-2 max-w-sm">{c.notes}</p>
-                              )}
+                              <label className="text-xs text-gray-500 block mb-1">Describe the Issue</label>
+                              <textarea
+                                rows={2}
+                                className="border rounded-xl px-3 py-2.5 text-sm w-full"
+                                placeholder="Describe symptoms, affected area, urgency..."
+                                value={newNotes}
+                                onChange={e => setNewNotes(e.target.value)}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleRequestConsultation}
+                                disabled={db.mutating || !newDoctorId}
+                                className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-900 disabled:opacity-50 transition"
+                              >
+                                {db.mutating
+                                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                                  : <Send className="w-4 h-4" />}
+                                Submit Request
+                              </button>
+                              <button
+                                onClick={() => setShowNewConsult(false)}
+                                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                              >
+                                Cancel
+                              </button>
                             </div>
                           </div>
+                        )}
+                      </div>
+                    </SectionCard>
 
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {c.status === 'REQUESTED' && (
-                              <button
-                                onClick={() => db.acceptRequest(c.id, activeDoctorId)}
-                                disabled={db.mutating}
-                                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
-                              >
-                                {db.mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                Accept
-                              </button>
-                            )}
-                            {c.status === 'IN_PROGRESS' && !c.prescription && (
-                              <button
-                                onClick={() => { setBuilderConsult(c); setBuilderDoctorId(activeDoctorId); }}
-                                className="flex items-center gap-1.5 bg-linear-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow"
-                              >
-                                <FileText className="w-4 h-4" /> Write Prescription
-                              </button>
-                            )}
-                            {c.prescription && (
-                              <div className="flex items-center gap-2">
-                                <Badge className={RX_STATUS_META[c.prescription.status].color}>Rx Issued</Badge>
-                                <button
-                                  onClick={() => setWhatsAppRx(c.prescription!)}
-                                  className="flex items-center gap-1.5 border border-teal-500 text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-50 transition"
-                                >
-                                  <Smartphone className="w-3.5 h-3.5" /> WhatsApp
-                                </button>
-                              </div>
-                            )}
+                    {/* My consultation requests */}
+                    {db.consultations.length > 0 && (
+                      <SectionCard>
+                        <div className="px-6 py-5">
+                          <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-4">My Consultation Requests</h3>
+                          <div className="space-y-3">
+                            {db.consultations.map(c => {
+                              const doctor     = db.doctors.find(d => d.id === c.doctorId);
+                              const typeInfo   = CONSULT_TYPES.find(t => t.key === c.type)!;
+                              const statusMeta = STATUS_META[c.status];
+                              const TypeIcon   = typeInfo.icon;
+                              return (
+                                <div key={c.id} className="flex items-start justify-between border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50 transition">
+                                  <div className="flex items-start gap-3">
+                                    <div className={`p-2.5 rounded-xl bg-gradient-to-br ${typeInfo.color}`}>
+                                      <TypeIcon className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-sm text-gray-800">{typeInfo.label}</p>
+                                      <p className="text-xs text-gray-500">
+                                        {new Date(c.targetDateTime).toLocaleString()} · {doctor?.name || 'Unassigned'}
+                                      </p>
+                                      {c.notes && <p className="text-xs text-gray-600 mt-0.5 max-w-xs truncate">{c.notes}</p>}
+                                      {c.prescription && (
+                                        <button
+                                          onClick={() => setTab('prescriptions')}
+                                          className="mt-1 text-xs font-bold text-slate-700 underline flex items-center gap-1"
+                                        >
+                                          <FileText className="w-3 h-3" /> View Prescription
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Badge className={statusMeta.color}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                                    {statusMeta.label}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </SectionCard>
-                    );
-                  })
-                )}
-              </div>
-            )}
+                    )}
 
-            {/* ═══ DOCTOR — ISSUED PRESCRIPTIONS ══════════════════════ */}
-            {portalMode === 'doctor' && tab === 'prescriptions' && (
-              <div className="space-y-4">
-                <h2 className="font-extrabold text-gray-800 text-base">Issued Prescriptions</h2>
-                {(() => {
-                  const activeDoctor = DOCTORS.find(d => d.id === activeDoctorId);
-                  const doctorRxs = db.allPrescriptions.filter(rx => rx.doctorName === activeDoctor?.name);
-                  return doctorRxs.length === 0 ? (
-                    <div className="text-center py-16 text-gray-400">
-                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">No prescriptions issued yet for this doctor.</p>
+                    {db.consultations.length === 0 && db.doctors.length > 0 && (
+                      <div className="text-center py-16 text-gray-400">
+                        <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">No consultations yet. Request your first one above.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ═══ GROWER — MY PRESCRIPTIONS ═══════════════════════════ */}
+                {tab === 'prescriptions' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-extrabold text-gray-800 text-base">My Digital Prescriptions</h2>
+                      <Badge className="text-gray-600 bg-gray-100 border-gray-200">{db.allPrescriptions.length} Total</Badge>
                     </div>
-                  ) : (
-                    doctorRxs.map(rx => (
-                      <PrescriptionCard
-                        key={rx.id}
-                        rx={rx}
-                        mutating={db.mutating}
-                        onExecute={() => handleExecuteRx(rx)}
-                        onFlagCorrection={() => db.flagCorrection(rx.id)}
-                        showWhatsApp={() => setWhatsAppRx(rx)}
-                      />
-                    ))
-                  );
-                })()}
-              </div>
+
+                    {db.allPrescriptions.length === 0 ? (
+                      <div className="text-center py-16 text-gray-400">
+                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">No prescriptions issued yet. Request a consultation first.</p>
+                      </div>
+                    ) : (
+                      db.allPrescriptions.map(rx => (
+                        <PrescriptionCard
+                          key={rx.id}
+                          rx={rx}
+                          mutating={db.mutating}
+                          onExecute={() => handleExecuteRx(rx)}
+                          onFlagCorrection={() => db.flagCorrection(rx.id)}
+                          showWhatsApp={() => setWhatsAppRx(rx)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* ═══ GROWER — OUR DOCTORS ════════════════════════════════ */}
+                {tab === 'doctors' && (
+                  <div className="space-y-4">
+                    <h2 className="font-extrabold text-gray-800 text-base">Certified Agronomists</h2>
+
+                    {db.doctorsLoading && (
+                      <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="text-sm">Loading doctors…</span>
+                      </div>
+                    )}
+
+                    {!db.doctorsLoading && db.doctors.length === 0 && (
+                      <div className="text-center py-16 text-gray-400">
+                        <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">No doctors registered yet.</p>
+                        <p className="text-xs mt-1">Doctors can register by switching to the Doctor portal.</p>
+                      </div>
+                    )}
+
+                    {!db.doctorsLoading && db.doctors.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {db.doctors.map(doctor => (
+                          <div key={doctor.id} className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
+                            <div className="bg-gradient-to-br from-slate-700 to-slate-900 px-5 py-6 text-center">
+                              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+                                <Stethoscope className="w-8 h-8 text-white" />
+                              </div>
+                              <p className="text-white font-extrabold">{doctor.name}</p>
+                              <p className="text-slate-300 text-xs mt-1">{doctor.specialization}</p>
+                            </div>
+                            <div className="px-5 py-4 space-y-3">
+                              <div className="flex items-center text-sm text-gray-500 gap-1">
+                                <Building2 className="w-3.5 h-3.5" />{doctor.hospitalName}
+                              </div>
+                              {doctor.bio && (
+                                <p className="text-xs text-gray-500 line-clamp-2">{doctor.bio}</p>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1 text-amber-500 text-sm font-bold">
+                                  {'★'.repeat(Math.min(5, Math.round(doctor.rating)))}
+                                  <span className="text-gray-600 font-normal ml-1">{doctor.rating.toFixed(1)}</span>
+                                </div>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${doctor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  {doctor.available ? '● Available' : '○ Unavailable'}
+                                </span>
+                              </div>
+                              {doctor.available && (
+                                <button
+                                  onClick={() => { setNewDoctorId(doctor.id); setTab('consult'); setShowNewConsult(true); }}
+                                  className="w-full bg-slate-800 text-white py-2 rounded-xl text-sm font-bold hover:bg-slate-900 transition"
+                                >
+                                  Request Consultation
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -1163,7 +1452,7 @@ export default function OrchardDoctor({
           { label: 'Total Requests', value: db.consultations.length,                                              color: 'text-sky-400'    },
           { label: 'In Progress',    value: db.consultations.filter(c => c.status === 'IN_PROGRESS').length,      color: 'text-blue-400'   },
           { label: 'Prescriptions',  value: db.allPrescriptions.length,                                           color: 'text-purple-400' },
-          { label: 'Pending Action', value: db.pendingRxCount,                                                    color: 'text-red-400'    },
+          { label: 'Doctors Online', value: db.doctors.filter(d => d.available).length,                           color: 'text-green-400'  },
         ].map(stat => (
           <div key={stat.label}>
             <p className={`text-xl font-extrabold ${stat.color}`}>{stat.value}</p>

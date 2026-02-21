@@ -610,6 +610,7 @@ CREATE OR REPLACE VIEW field_analytics_view AS
 SELECT 
   f.id,
   f.user_id,
+  p.name AS grower_name,
   f.name,
   f.area,
   COALESCE(tt.tagged_trees, 0) as tagged_trees,
@@ -622,6 +623,7 @@ SELECT
   pr.latest_harvest_date,
   COALESCE(pr.latest_harvest_quantity, 0) as latest_harvest_quantity
 FROM fields f
+LEFT JOIN profiles p ON f.user_id = p.id
 LEFT JOIN (
   SELECT 
     field_id,
@@ -830,3 +832,30 @@ CREATE POLICY "Users can upload their own receipts"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+  -- Enable RLS on the consultations table
+ALTER TABLE consultations ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to select their own consultations
+CREATE POLICY "Users can read own consultations"
+  ON consultations
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Allow users to insert their own consultations
+CREATE POLICY "Users can insert own consultations"
+  ON consultations
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Allow users to update their own consultations
+CREATE POLICY "Users can update own consultations"
+  ON consultations
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Allow users to delete their own consultations
+CREATE POLICY "Users can delete own consultations"
+  ON consultations
+  FOR DELETE
+  USING (auth.uid() = user_id);

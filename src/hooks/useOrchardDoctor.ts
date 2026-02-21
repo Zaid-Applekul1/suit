@@ -1,5 +1,5 @@
 /**
- * useOrchardDoctor â€” manages all state + DB mutations for the module.
+ * useOrchardDoctor – manages all state + DB mutations for the module.
  * The component becomes a pure render layer; all side-effects live here.
  */
 
@@ -8,26 +8,96 @@ import type {
   ConsultationRequest,
   ConsultType,
   ActionItem,
+  DoctorProfile,
 } from '../lib/database.types';
 import {
   fetchConsultations,
+  fetchConsultationsForDoctor,
   createConsultation,
   updateConsultationStatus,
   issuePrescription,
   updatePrescriptionStatus,
+  fetchDoctors,
+  fetchDoctorByUserId,
+  createDoctorProfile,
+  updateDoctorProfile,
 } from '../lib/orchardDb';
 
 export type MutationState = 'idle' | 'loading' | 'error';
 
 export function useOrchardDoctor(fieldId: string, userId: string, growerName: string, growerPhone: string) {
+  /* ── Grower consultations ── */
   const [consultations, setConsultations] = useState<ConsultationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mutating, setMutating] = useState(false);
 
-  /* â”€â”€ Initial load â”€â”€ */
+  /* ── All real doctors from DB ── */
+  const [doctors, setDoctors] = useState<DoctorProfile[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
+
+  /* ── Current user's doctor profile (if they are a doctor) ── */
+  const [myDoctorProfile, setMyDoctorProfile] = useState<DoctorProfile | null>(null);
+  const [myDoctorProfileLoading, setMyDoctorProfileLoading] = useState(true);
+
+  /* ── Doctor-mode: consultations assigned to this doctor ── */
+  const [doctorConsultations, setDoctorConsultations] = useState<ConsultationRequest[]>([]);
+  const [doctorConsultationsLoading, setDoctorConsultationsLoading] = useState(false);
+
+  /* ── Load doctors list ── */
+  const reloadDoctors = useCallback(async () => {
+    setDoctorsLoading(true);
+    try {
+      const rows = await fetchDoctors();
+      setDoctors(rows);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDoctorsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { reloadDoctors(); }, [reloadDoctors]);
+
+  /* ── Load current user's doctor profile ── */
+  const reloadMyDoctorProfile = useCallback(async () => {
+    if (!userId) { setMyDoctorProfileLoading(false); return; }
+    setMyDoctorProfileLoading(true);
+    try {
+      const profile = await fetchDoctorByUserId(userId);
+      setMyDoctorProfile(profile);
+    } catch {
+      // user is not a doctor — silently ignore
+      setMyDoctorProfile(null);
+    } finally {
+      setMyDoctorProfileLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => { reloadMyDoctorProfile(); }, [reloadMyDoctorProfile]);
+
+  /* ── Load doctor's own consultation queue when doctor profile is known ── */
+  const reloadDoctorConsultations = useCallback(async (doctorId: string) => {
+    if (!doctorId) return;
+    setDoctorConsultationsLoading(true);
+    try {
+      const rows = await fetchConsultationsForDoctor(doctorId);
+      setDoctorConsultations(rows);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDoctorConsultationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (myDoctorProfile?.id) {
+      reloadDoctorConsultations(myDoctorProfile.id);
+    }
+  }, [myDoctorProfile?.id, reloadDoctorConsultations]);
+
+  /* ── Grower: initial load ── */
   const reload = useCallback(async () => {
-    // Guard: skip fetch when fieldId or userId is empty (component rendered before props are ready)
     if (!fieldId || !userId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
@@ -43,7 +113,7 @@ export function useOrchardDoctor(fieldId: string, userId: string, growerName: st
 
   useEffect(() => { reload(); }, [reload]);
 
-  /* â”€â”€ Derived â”€â”€ */
+  /* ── Derived ── */
   const allPrescriptions = useMemo(
     () => consultations.flatMap(c => c.prescription ? [c.prescription] : []),
     [consultations]
@@ -54,7 +124,7 @@ export function useOrchardDoctor(fieldId: string, userId: string, growerName: st
     [allPrescriptions]
   );
 
-  /* â”€â”€ Helpers â”€â”€ */
+  /* ── Helpers ── */
   function withMutation<T extends unknown[]>(fn: (...args: T) => Promise<void>) {
     return async (...args: T) => {
       setMutating(true);
@@ -62,6 +132,10 @@ export function useOrchardDoctor(fieldId: string, userId: string, growerName: st
       try {
         await fn(...args);
         await reload();
+        // Refresh doctor consultations too if the user is a doctor
+        if (myDoctorProfile?.id) {
+          await reloadDoctorConsultations(myDoctorProfile.id);
+        }
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -70,7 +144,7 @@ export function useOrchardDoctor(fieldId: string, userId: string, growerName: st
     };
   }
 
-  /* â”€â”€ Actions â”€â”€ */
+  /* ── Actions ── */
 
   const requestConsultation = withMutation(async (payload: {
     doctorId: string;
@@ -123,7 +197,57 @@ export function useOrchardDoctor(fieldId: string, userId: string, growerName: st
     await updatePrescriptionStatus(rxId, 'NEEDS_CORRECTION');
   });
 
+  /** Register the current user as a doctor */
+  const registerAsDoctor = async (payload: {
+    name: string;
+    specialization: string;
+    hospitalName: string;
+    phone?: string;
+    email?: string;
+    bio?: string;
+  }): Promise<void> => {
+    setMutating(true);
+    setError(null);
+    try {
+      const profile = await createDoctorProfile({ userId, ...payload });
+      setMyDoctorProfile(profile);
+      await reloadDoctors();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setMutating(false);
+    }
+  };
+
+  /** Update the current doctor's own profile */
+  const updateMyDoctorProfile = async (
+    patch: Partial<{
+      name: string;
+      specialization: string;
+      hospitalName: string;
+      phone: string;
+      email: string;
+      bio: string;
+      available: boolean;
+      avatarUrl: string;
+    }>
+  ): Promise<void> => {
+    if (!myDoctorProfile) return;
+    setMutating(true);
+    setError(null);
+    try {
+      const updated = await updateDoctorProfile(myDoctorProfile.id, patch);
+      setMyDoctorProfile(updated);
+      await reloadDoctors();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setMutating(false);
+    }
+  };
+
   return {
+    /* grower data */
     consultations,
     allPrescriptions,
     pendingRxCount,
@@ -136,5 +260,20 @@ export function useOrchardDoctor(fieldId: string, userId: string, growerName: st
     issueRx,
     executeRx,
     flagCorrection,
+
+    /* doctors list (for grower to pick from) */
+    doctors,
+    doctorsLoading,
+
+    /* current user's doctor profile */
+    myDoctorProfile,
+    myDoctorProfileLoading,
+    registerAsDoctor,
+    updateMyDoctorProfile,
+
+    /* doctor-mode consultation queue */
+    doctorConsultations,
+    doctorConsultationsLoading,
+    reloadDoctorConsultations,
   };
 }
