@@ -9,7 +9,87 @@ import type { Field } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-
+/* ─── Fields Page Animation Styles ─── */
+const FIELDS_STYLES = `
+@keyframes fldFadeUp {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes fldScaleIn {
+  from { opacity:0; transform:scale(0.92); }
+  to   { opacity:1; transform:scale(1); }
+}
+@keyframes fldSlideDown {
+  from { opacity:0; transform:translateY(-16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes fldGradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes fldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.25); }
+  50%       { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+}
+.fld-fade-up   { animation: fldFadeUp   0.55s cubic-bezier(.22,1,.36,1) both; }
+.fld-scale-in  { animation: fldScaleIn  0.45s cubic-bezier(.22,1,.36,1) both; }
+.fld-slide-dn  { animation: fldSlideDown 0.5s cubic-bezier(.22,1,.36,1) both; }
+.fld-d0 { animation-delay:0s; }
+.fld-d1 { animation-delay:.07s; }
+.fld-d2 { animation-delay:.14s; }
+.fld-d3 { animation-delay:.21s; }
+.fld-d4 { animation-delay:.28s; }
+.fld-header-grad {
+  background: linear-gradient(135deg,#064e3b,#065f46,#047857,#059669,#10b981,#34d399,#10b981,#047857);
+  background-size:300% 300%;
+  animation: fldGradientShift 8s ease infinite;
+}
+.fld-card {
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.fld-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 38px rgba(34,197,94,0.13);
+  border-color: #86efac;
+}
+.fld-input {
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.fld-input:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.15);
+  background: #f0fdf4;
+  outline: none;
+}
+.fld-select:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.15);
+  outline: none;
+}
+.fld-step-btn {
+  transition: background .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.fld-step-btn.active {
+  background: linear-gradient(135deg, #15803d, #16a34a);
+  color: white;
+  box-shadow: 0 4px 14px rgba(22,163,74,0.35);
+}
+.fld-soil-btn {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.fld-soil-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(34,197,94,0.15);
+}
+.fld-row-card {
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+.fld-row-card:hover {
+  box-shadow: 0 4px 18px rgba(34,197,94,0.10);
+  border-color: #86efac;
+}
+`;
 
 const soilOptions = [
   {
@@ -1348,29 +1428,48 @@ const Fields = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-gray-900">Orchards</h1>
-        <Button className="flex items-center space-x-2" onClick={openWizard}>
-          <Plus className="w-4 h-4" />
-          <span>Create Field</span>
-        </Button>
+    <>
+      <style>{FIELDS_STYLES}</style>
+    <div className="space-y-6 pb-10">
+      {/* ── Hero Header ── */}
+      <div className="fld-slide-dn fld-d0 relative overflow-hidden rounded-3xl fld-header-grad shadow-2xl">
+        <div className="absolute -top-10 -left-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute -bottom-12 -right-12 w-60 h-60 rounded-full bg-white/5 pointer-events-none" />
+        <div className="relative px-8 py-10 flex flex-col items-center text-center gap-4">
+          <div className="fld-scale-in fld-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
+            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+            Field Management
+          </div>
+          <h1 className="fld-fade-up fld-d2 text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+            🌳 Orchards
+          </h1>
+          <p className="fld-fade-up fld-d3 text-base sm:text-lg text-emerald-100/90 font-medium max-w-md">
+            Manage and view all your orchard fields with ease
+          </p>
+          <button
+            onClick={openWizard}
+            className="fld-scale-in fld-d4 flex items-center gap-2 px-6 py-3 bg-white text-green-700 font-bold rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+          >
+            <Plus className="w-5 h-5" />
+            Create Field
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}
-      <Card className="p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <Card className="fld-fade-up fld-d1 p-4 border border-gray-100 rounded-2xl shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
               placeholder="Search fields..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="fld-input w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm"
             />
           </div>
-          <Button variant="outline" className="flex items-center space-x-2">
+          <Button variant="outline" className="flex items-center space-x-2 rounded-xl">
             <Filter className="w-4 h-4" />
             <span>Filter</span>
           </Button>
@@ -1386,20 +1485,23 @@ const Fields = () => {
       {/* Fields Grid */}
       {fieldsLoading ? (
         <Card className="p-12 text-center">
-          <p className="text-sm text-gray-500">Loading fields...</p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 rounded-full border-4 border-green-200 border-t-green-600 animate-spin" />
+            <p className="text-sm text-gray-500 font-medium">Loading fields...</p>
+          </div>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFields.map((field) => (
-            <Card key={field.id} className="p-6 hover:shadow-md transition-shadow duration-200">
+          {filteredFields.map((field, _fi) => (
+            <Card key={field.id} className="fld-card fld-fade-up p-6 border border-gray-100 rounded-2xl" style={{ animationDelay: `${_fi * 0.06}s` }}>
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                  <div className="flex items-center text-sm text-gray-500 mt-1">
+                  <h3 className="text-lg font-bold text-gray-900">{field.name}</h3>
+                  <div className="flex items-center text-sm text-gray-400 mt-1">
                     {field.location}
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHealthStatusColor(field.healthStatus)}`}> 
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getHealthStatusColor(field.healthStatus)}`}>
                   {field.healthStatus}
                 </span>
               </div>
@@ -1500,49 +1602,72 @@ const Fields = () => {
       )}
 
       {!fieldsLoading && filteredFields.length === 0 && (
-        <Card className="p-12 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-
+        <Card className="fld-scale-in p-14 text-center border border-dashed border-green-200 rounded-3xl bg-green-50/30">
+          <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <span className="text-4xl">🌳</span>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No fields found</h3>
-          <p className="text-gray-500 mb-4">
-            {searchTerm ? 'Try adjusting your search terms.' : 'Get started by adding your first field.'}
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No fields found</h3>
+          <p className="text-gray-500 mb-6 text-sm">
+            {searchTerm ? 'Try adjusting your search terms.' : 'Get started by adding your first orchard field.'}
           </p>
-          <Button onClick={openWizard}>Create Field</Button>
+          <button
+            onClick={openWizard}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+          >
+            <Plus className="w-5 h-5" />
+            Create Field
+          </button>
         </Card>
       )}
 
       {wizardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={resetWizard} />
-          <div className="relative bg-white w-full max-w-5xl mx-4 rounded-2xl shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Field Creation</h2>
-                <p className="text-sm text-gray-500">Step {wizardStep} of 4</p>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetWizard} />
+          <div className="fld-scale-in relative bg-white w-full max-w-5xl mx-4 rounded-3xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 fld-header-grad">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <span className="text-lg">🌳</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-white">
+                    {editingFieldId ? 'Edit Field' : 'Create Field'}
+                  </h2>
+                  <p className="text-xs text-emerald-200 font-medium">Step {wizardStep} of 4</p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={resetWizard}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="p-2 rounded-xl bg-white/15 hover:bg-white/25 transition-colors"
                 aria-label="Close"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-white" />
               </button>
             </div>
 
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Step indicators */}
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {['Orchard Details', 'Soil Type', 'Location', 'Orchard Map'].map((label, index) => (
                   <div
                     key={label}
-                    className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                    className={`fld-step-btn rounded-xl px-3 py-2.5 text-xs font-bold flex items-center gap-2 ${
                       wizardStep === index + 1
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-600'
+                        ? 'active'
+                        : wizardStep > index + 1
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-white text-gray-500 border border-gray-200'
                     }`}
                   >
-                    {index + 1}. {label}
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${
+                      wizardStep === index + 1 ? 'bg-white/25 text-white' :
+                      wizardStep > index + 1 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {wizardStep > index + 1 ? '✓' : index + 1}
+                    </span>
+                    {label}
                   </div>
                 ))}
               </div>
@@ -1550,61 +1675,67 @@ const Fields = () => {
 
             <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
                 {wizardStep === 1 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Orchard Name</label>
+                  <div className="space-y-6 fld-fade-up">
+                    {/* Section label */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-1 h-6 rounded-full bg-gradient-to-b from-green-500 to-emerald-600" />
+                      <h3 className="text-base font-extrabold text-gray-900">Basic Orchard Information</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Orchard Name</label>
                         <input
                           type="text"
                           value={formData.name}
                           onChange={(e) => updateFormValue('name', e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          placeholder="e.g. Apple Valley Orchard"
+                          className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Orchard Type</label>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Orchard Type</label>
                         <select
                           value={formData.orchardType}
                           onChange={(e) => updateFormValue('orchardType', e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                         >
-                          <option value="">Select type</option>
+                          <option value="">Select type…</option>
                           {orchardTypes.map((type) => (
-                            <option key={type} value={type}>
-                              {type}
-                            </option>
+                            <option key={type} value={type}>{type}</option>
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Orchard Area (kanal)</label>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Area (kanal)</label>
                         <input
                           type="number"
                           min="0"
                           step="0.01"
                           value={formData.areaKanal}
                           onChange={(e) => updateFormValue('areaKanal', e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          placeholder="0.00"
+                          className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Age of Orchard (years)</label>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Age of Orchard (years)</label>
                         <input
                           type="number"
                           min="0"
                           value={formData.ageYears}
                           onChange={(e) => updateFormValue('ageYears', e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          placeholder="0"
+                          className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                         />
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pollinator Type</label>
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Pollinator Variety</label>
                         <select
                           value={formData.pollinatorType}
                           onChange={(e) => updateFormValue('pollinatorType', e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                         >
-                          <option value="">Select pollinator variety</option>
+                          <option value="">Select pollinator variety…</option>
                           {getPollinatorsForOrchard().map((v) => (
                             <option key={v.name} value={v.name}>
                               {v.name} - {v.description}
@@ -1616,77 +1747,81 @@ const Fields = () => {
 
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-base font-semibold text-gray-900">Row Configuration</h3>
-                        <Button variant="outline" size="sm" onClick={handleAddRow}>
-                          <Plus className="w-4 h-4 mr-2" />
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-emerald-500 to-green-600" />
+                          <h3 className="text-base font-extrabold text-gray-900">Row Configuration</h3>
+                        </div>
+                        <button
+                          onClick={handleAddRow}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-bold rounded-xl hover:bg-green-100 transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
                           Add Row
-                        </Button>
+                        </button>
                       </div>
 
                       <div className="space-y-4">
                         {formData.rows && formData.rows.map((row, rowIndex) => (
-                          <div key={`row-${rowIndex}`} className="rounded-lg border-2 border-gray-300 bg-gray-50 p-4">
+                          <div key={`row-${rowIndex}`} className="fld-row-card rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-green-50/20 p-4">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="text-sm font-semibold text-gray-900">Row {row.rowId}</h4>
+                              <div className="flex items-center gap-2">
+                                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-xs font-extrabold text-white shadow-sm">
+                                  {row.rowId}
+                                </span>
+                                <h4 className="text-sm font-bold text-gray-900">Row {row.rowId}</h4>
+                              </div>
                               <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                                <button
                                   onClick={() => handleAddVarietyToRow(rowIndex)}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:border-green-300 hover:text-green-700 transition-colors"
                                 >
-                                  <Plus className="w-3 h-3 mr-1" />
-                                  Add Variety
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                                  <Plus className="w-3 h-3" />
+                                  Variety
+                                </button>
+                                <button
                                   onClick={() => handleRemoveRow(rowIndex)}
                                   disabled={formData.rows.length === 1}
-                                  className="text-red-600"
+                                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
                                 >
                                   <X className="w-4 h-4" />
-                                </Button>
+                                </button>
                               </div>
                             </div>
 
                             <div className="space-y-2">
                               {row.varieties.map((varietyInRow, varietyIndex) => (
-                                <div key={`row-${rowIndex}-variety-${varietyIndex}`} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end bg-white p-3 rounded border border-gray-200">
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Variety</label>
+                                <div key={`row-${rowIndex}-variety-${varietyIndex}`} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                                  <div className="space-y-1">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Variety</label>
                                     <select
                                       value={varietyInRow.variety}
                                       onChange={(e) => handleRowVarietyChange(rowIndex, varietyIndex, 'variety', e.target.value)}
-                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                                      className="fld-input w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-gray-50"
                                     >
-                                      <option value="">Select variety</option>
+                                      <option value="">Select…</option>
                                       {getAvailableVarieties().map((v) => (
-                                        <option key={v.name} value={v.name}>
-                                          {v.name}
-                                        </option>
+                                        <option key={v.name} value={v.name}>{v.name}</option>
                                       ))}
                                     </select>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Trees</label>
+                                  <div className="space-y-1">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Trees</label>
                                     <input
                                       type="number"
                                       min="0"
-                                      placeholder="Number"
+                                      placeholder="Count"
                                       value={varietyInRow.trees}
                                       onChange={(e) => handleRowVarietyChange(rowIndex, varietyIndex, 'trees', e.target.value)}
-                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                                      className="fld-input w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-gray-50"
                                     />
                                   </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
+                                  <button
                                     onClick={() => handleRemoveVarietyFromRow(rowIndex, varietyIndex)}
                                     disabled={row.varieties.length === 1}
-                                    className="mb-1"
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-30 mb-0.5"
                                   >
                                     <X className="w-4 h-4" />
-                                  </Button>
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -1742,15 +1877,18 @@ const Fields = () => {
                 )}
 
               {wizardStep === 2 && (
-                <div className="space-y-6">
+                <div className="space-y-6 fld-fade-up">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Select Soil Type</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-6 rounded-full bg-gradient-to-b from-amber-500 to-orange-500" />
+                      <h3 className="text-base font-extrabold text-gray-900">Select Soil Type</h3>
+                    </div>
                     <button
                       type="button"
-                      className="text-sm font-medium text-green-700 hover:text-green-800"
+                      className="text-xs font-bold text-green-700 hover:text-green-800 px-3 py-1.5 rounded-xl bg-green-50 border border-green-200 hover:bg-green-100 transition-colors"
                       onClick={() => setSoilGuideOpen(true)}
                     >
-                      Check Soil Guide
+                      Soil Guide →
                     </button>
                   </div>
 
@@ -1760,26 +1898,33 @@ const Fields = () => {
                         key={soil.name}
                         type="button"
                         onClick={() => {
-                          if (formData.unknownSoil) {
-                            return;
-                          }
+                          if (formData.unknownSoil) return;
                           updateFormValue('soilType', soil.name);
                         }}
-                        className={`rounded-xl border overflow-hidden text-left transition ${
+                        className={`fld-soil-btn rounded-2xl border-2 overflow-hidden text-left ${
                           formData.soilType === soil.name
-                            ? 'border-green-500 ring-2 ring-green-200'
+                            ? 'border-green-500 ring-2 ring-green-200 shadow-lg shadow-green-100'
                             : 'border-gray-200 hover:border-green-300'
-                        } ${formData.unknownSoil ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        } ${formData.unknownSoil ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
-                        <img src={soil.image} alt={soil.name} className="h-28 w-full object-cover" />
-                        <div className="p-3">
-                          <p className="text-sm font-medium text-gray-800">{soil.name}</p>
+                        <div className="relative">
+                          <img src={soil.image} alt={soil.name} className="h-32 w-full object-cover" />
+                          {formData.soilType === soil.name && (
+                            <div className="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow">
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 bg-white">
+                          <p className="text-sm font-bold text-gray-800">{soil.name}</p>
                         </div>
                       </button>
                     ))}
                   </div>
 
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer p-3 rounded-xl border border-dashed border-gray-200 hover:border-green-300 hover:bg-green-50/30 transition-colors">
                     <input
                       type="checkbox"
                       checked={formData.unknownSoil}
@@ -1790,90 +1935,102 @@ const Fields = () => {
                           soilType: e.target.checked ? 'Unknown' : '',
                         }))
                       }
-                      className="h-4 w-4 text-green-600 border-gray-300 rounded"
+                      className="h-4 w-4 text-green-600 border-gray-300 rounded accent-green-600"
                     />
-                    Can't determine soil type
+                    <span className="font-medium">I can't determine the soil type right now</span>
                   </label>
                 </div>
               )}
 
               {wizardStep === 3 && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
-                      <input
-                        type="text"
-                        value={formData.pincode}
-                        onChange={(e) => updateFormValue('pincode', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      />
-                      {pincodeLoading && <p className="text-xs text-gray-500 mt-1">Fetching location...</p>}
+                <div className="space-y-5 fld-fade-up">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500" />
+                    <h3 className="text-base font-extrabold text-gray-900">Location Details</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Pincode</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.pincode}
+                          onChange={(e) => updateFormValue('pincode', e.target.value)}
+                          placeholder="6-digit pincode"
+                          className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
+                        />
+                        {pincodeLoading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
+                        )}
+                      </div>
+                      {pincodeLoading && <p className="text-xs text-gray-400 mt-1">Auto-filling location…</p>}
                       {pincodeError && <p className="text-xs text-red-500 mt-1">{pincodeError}</p>}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">District</label>
                       <input
                         type="text"
                         value={formData.district}
                         onChange={(e) => updateFormValue('district', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g. Shopian"
+                        className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tehsil</label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Tehsil</label>
                       <input
                         type="text"
                         value={formData.tehsil}
                         onChange={(e) => updateFormValue('tehsil', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Region</label>
                       <input
                         type="text"
                         value={formData.region}
                         onChange={(e) => updateFormValue('region', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">State</label>
                       <input
                         type="text"
                         value={formData.state}
                         onChange={(e) => updateFormValue('state', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Zone</label>
                       <input
                         type="text"
                         value={formData.zone}
                         onChange={(e) => updateFormValue('zone', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Country</label>
                       <input
                         type="text"
                         value={formData.country}
                         onChange={(e) => updateFormValue('country', e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Full Address</label>
                     <textarea
                       rows={3}
                       value={formData.fullAddress}
                       onChange={(e) => updateFormValue('fullAddress', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Village, Tehsil, District…"
+                      className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50 resize-none"
                     />
                   </div>
                 </div>
@@ -2106,21 +2263,41 @@ const Fields = () => {
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <Button
-                variant="outline"
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between">
+              <button
                 onClick={() => setWizardStep((prev) => Math.max(1, prev - 1))}
                 disabled={wizardStep === 1}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Back
-              </Button>
+                ← Back
+              </button>
+              <div className="flex items-center gap-1.5">
+                {[1,2,3,4].map(s => (
+                  <span key={s} className={`w-2 h-2 rounded-full transition-all duration-200 ${s === wizardStep ? 'bg-green-600 scale-125' : s < wizardStep ? 'bg-green-300' : 'bg-gray-200'}`} />
+                ))}
+              </div>
               {wizardStep < 4 ? (
-                <Button onClick={() => setWizardStep((prev) => Math.min(4, prev + 1))}>Next</Button>
+                <button
+                  onClick={() => setWizardStep((prev) => Math.min(4, prev + 1))}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-xl hover:scale-105 transition-all duration-200"
+                >
+                  Next →
+                </button>
               ) : (
                 editingFieldId ? (
-                  <Button onClick={handleUpdateField}>Update Field</Button>
+                  <button
+                    onClick={handleUpdateField}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-xl hover:scale-105 transition-all duration-200"
+                  >
+                    ✓ Update Field
+                  </button>
                 ) : (
-                  <Button onClick={handleCreateField}>Create Field</Button>
+                  <button
+                    onClick={handleCreateField}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-xl hover:scale-105 transition-all duration-200"
+                  >
+                    ✓ Create Field
+                  </button>
                 )
               )}
             </div>
@@ -2130,62 +2307,83 @@ const Fields = () => {
 
       {soilGuideOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSoilGuideOpen(false)} />
-          <div className="relative bg-white w-full max-w-lg mx-4 rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Soil Guide</h3>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSoilGuideOpen(false)} />
+          <div className="fld-scale-in relative bg-white w-full max-w-lg mx-4 rounded-3xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
+                  <span className="text-lg">🌍</span>
+                </div>
+                <h3 className="text-lg font-extrabold text-gray-900">Soil Guide</h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setSoilGuideOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
                 aria-label="Close"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-5 p-3 rounded-xl bg-amber-50 border border-amber-100">
               Use texture and moisture to identify soil type. Sandy soils feel gritty, while clay soils feel sticky.
             </p>
-            <ul className="text-sm text-gray-700 space-y-2">
-              <li>Sandy: Loose, fast-draining, low moisture retention.</li>
-              <li>Sandy Loam: Balanced texture, good drainage and nutrients.</li>
-              <li>Silt Loam: Smooth, holds moisture, fertile.</li>
-              <li>Clay: Dense, holds water, slow drainage.</li>
+            <ul className="space-y-3">
+              {[
+                { name: 'Sandy', desc: 'Loose, fast-draining, low moisture retention.', icon: '🏜️' },
+                { name: 'Sandy Loam', desc: 'Balanced texture, good drainage and nutrients.', icon: '🌾' },
+                { name: 'Silt Loam', desc: 'Smooth, holds moisture, fertile.', icon: '🌿' },
+                { name: 'Clay', desc: 'Dense, holds water, slow drainage.', icon: '🟫' },
+              ].map(s => (
+                <li key={s.name} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <span className="text-xl shrink-0">{s.icon}</span>
+                  <div>
+                    <span className="text-sm font-bold text-gray-900">{s.name}: </span>
+                    <span className="text-sm text-gray-600">{s.desc}</span>
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
       )}
       {tagFormOpen && pendingTagLocation && (
         <div className="fixed inset-0 z-70 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setTagFormOpen(false)} />
-          <div className="relative bg-white w-full max-w-lg mx-4 rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Tag Tree</h3>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setTagFormOpen(false)} />
+          <div className="fld-scale-in relative bg-white w-full max-w-lg mx-4 rounded-3xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm">
+                  <span className="text-lg">🌲</span>
+                </div>
+                <h3 className="text-lg font-extrabold text-gray-900">Tag Tree</h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setTagFormOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
                 aria-label="Close"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tree Name</label>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Tree Name</label>
                 <input
                   type="text"
                   value={tagFormData.name}
                   onChange={(e) => setTagFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="e.g. Tree A1"
+                  className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Variety</label>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Variety</label>
                 <select
                   value={tagFormData.variety}
                   onChange={(e) => setTagFormData((prev) => ({ ...prev, variety: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                   disabled={!tagFormData.rowNumber}
                 >
                   <option value="">Select variety</option>
@@ -2209,30 +2407,39 @@ const Fields = () => {
                   ) : null;
                 })()}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Row Number</label>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Row Number</label>
                 <select
                   value={tagFormData.rowNumber}
                   onChange={(e) => setTagFormData((prev) => ({ ...prev, rowNumber: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="fld-input w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-gray-50"
                 >
-                  <option value="">Select row</option>
+                  <option value="">Select row…</option>
                   {formData.rows && formData.rows.map((row) => (
                     <option key={row.rowId} value={row.rowId}>Row {row.rowId}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <div className="mt-6 flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setTagFormOpen(false)}>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setTagFormOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-100 transition-colors"
+              >
                 Cancel
-              </Button>
-              <Button onClick={handleTagFormSubmit}>Save Tag</Button>
+              </button>
+              <button
+                onClick={handleTagFormSubmit}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-xl hover:scale-105 transition-all duration-200"
+              >
+                Save Tag
+              </button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </>
   );
 };
 

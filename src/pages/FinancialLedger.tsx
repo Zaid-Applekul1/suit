@@ -429,14 +429,21 @@ export default function FinancialLedger() {
 
       {/* ── HEADER ── */}
       <div className="bg-gradient-to-r from-green-800 to-green-600 text-white px-6 py-5 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Apple Orchard · Financial Ledger</h1>
-            <p className="text-green-200 text-sm mt-1">Season 2025–2026 · Real-time profit tracking</p>
-          </div>
-          {db.loading && <Loader2 className="w-5 h-5 animate-spin text-green-200" />}
-        </div>
-      </div>
+    <div className="flex justify-center">
+    <div className="text-center">
+      <h1 className="text-2xl font-extrabold tracking-tight">
+        Apple Orchard · Financial Ledger
+      </h1>
+      <p className="text-green-200 text-sm mt-1">
+        Season 2025–2026 · Real-time profit tracking
+      </p>
+    </div>
+  </div>
+
+  {db.loading && (
+    <Loader2 className="w-5 h-5 animate-spin text-green-200 absolute right-6 top-1/2 -translate-y-1/2" />
+  )}
+</div>
 
       {/* ── ERROR BANNER ── */}
       {db.error && (

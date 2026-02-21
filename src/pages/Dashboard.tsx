@@ -460,30 +460,26 @@ const Dashboard: React.FC = () => {
       <div className="space-y-8 pb-10">
 
         {/* ── Top bar ── */}
-        <div className="flex items-center justify-between anim-fade-up">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400 bg-white border border-gray-100 rounded-full px-3 py-1.5 shadow-sm">
+        <div className="anim-fade-up text-center">
+          <div className="inline-flex items-center gap-2 text-xs text-gray-400 bg-white border border-gray-100 rounded-full px-3 py-1.5 shadow-sm mb-3">
             <Calendar className="w-3.5 h-3.5" />
             <span>Season 2025–26</span>
           </div>
+          <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-700 via-emerald-600 to-green-500 bg-clip-text text-transparent">Dashboard</h1>
+          <p className="text-sm text-gray-400 mt-1.5">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((s, i) => (
-            <div key={i} className={`stat-card anim-fade-up ${s.delay} bg-white border border-gray-100 rounded-2xl p-5 shadow-sm`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`p-2.5 rounded-xl ${s.bgColor}`}>
-                  <s.icon className={`w-5 h-5 ${s.color}`} />
-                </div>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{s.title}</span>
+            <div key={i} className={`stat-card anim-fade-up ${s.delay} bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center`}>
+              <div className={`p-3 rounded-2xl ${s.bgColor} mb-3`}>
+                <s.icon className={`w-6 h-6 ${s.color}`} />
               </div>
-              <p className="text-3xl font-bold text-gray-900 tabular-nums">{s.value}</p>
+              <p className="text-3xl font-extrabold text-gray-900 tabular-nums">{s.value}</p>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1">{s.title}</span>
             </div>
           ))}
         </div>
@@ -493,7 +489,7 @@ const Dashboard: React.FC = () => {
 
           {/* RAG Matrix */}
           <div className="anim-fade-up delay-200 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Health RAG Matrix</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4 text-center">Health RAG Matrix</p>
             <div className="flex items-center justify-around">
               {[
                 { label: 'Soil',  status: soilStatus,  tooltip: soilTooltip,  icon: { green: CheckCircle, yellow: AlertCircle, red: XCircle, gray: HelpCircle } },
@@ -518,7 +514,7 @@ const Dashboard: React.FC = () => {
 
           {/* Smart Action Center */}
           <div className="anim-fade-up delay-300 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Smart Actions</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4 text-center">Smart Actions</p>
             {smartActions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-center">
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mb-2">
@@ -544,11 +540,9 @@ const Dashboard: React.FC = () => {
 
         {/* ── Map Section ── */}
         <div className="anim-fade-up delay-300">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Orchard Map Overview</h2>
-              <p className="text-sm text-gray-400">All saved fields and locations</p>
-            </div>
+          <div className="flex flex-col items-center text-center mb-5 gap-3">
+            <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">Orchard Map Overview</h2>
+            <p className="text-sm text-gray-400">All saved fields and locations</p>
             <Button onClick={() => navigate('/fields')} size="sm" variant="outline">
               <MapPin className="w-4 h-4 mr-2" />View All Fields
             </Button>
@@ -653,12 +647,10 @@ const Dashboard: React.FC = () => {
         {/* ── 7-Day Weather Forecast ── */}
         {forecast.length > 0 && (
           <div className="anim-fade-up delay-400 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-indigo-50 rounded-xl"><Cloud className="w-5 h-5 text-indigo-500" /></div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">7-Day Forecast</h2>
-                <p className="text-xs text-gray-400">Spray window & irrigation advice</p>
-              </div>
+            <div className="flex flex-col items-center text-center mb-6 gap-2">
+              <div className="p-3 bg-indigo-50 rounded-2xl"><Cloud className="w-6 h-6 text-indigo-500" /></div>
+              <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-700 to-violet-500 bg-clip-text text-transparent">7-Day Forecast</h2>
+              <p className="text-xs text-gray-400">Spray window & irrigation advice</p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 mb-6">
@@ -758,9 +750,9 @@ const Dashboard: React.FC = () => {
             { title: 'Growth Analytics',    icon: TreePine,    label: 'Growth Analytics' },
           ].map(({ title, icon: Icon, label }, i) => (
             <div key={i} className={`anim-fade-up delay-${(i + 5) * 100} bg-white border border-gray-100 rounded-2xl p-6 shadow-sm`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-                <Icon className="w-5 h-5 text-green-500" />
+              <div className="flex flex-col items-center text-center mb-4 gap-2">
+                <Icon className="w-6 h-6 text-green-500" />
+                <h3 className="text-lg font-extrabold text-gray-900">{title}</h3>
               </div>
               <div className="h-48 bg-gray-50 rounded-xl flex items-center justify-center border border-dashed border-gray-200">
                 <div className="text-center">
@@ -777,7 +769,7 @@ const Dashboard: React.FC = () => {
 
         {/* ── Recent Activity ── */}
         <div className="anim-fade-up delay-600 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <h3 className="text-xl font-extrabold text-gray-900 mb-4 text-center">Recent Activity</h3>
           {activityError && (
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{activityError}</div>
           )}

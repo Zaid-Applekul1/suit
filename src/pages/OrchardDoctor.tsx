@@ -1125,9 +1125,15 @@ export default function OrchardDoctor({
               <Stethoscope className="w-7 h-7 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-extrabold tracking-tight">Orchard Hospital</h1>
-                <span className="text-xs font-bold bg-white/15 px-2 py-0.5 rounded-full text-slate-200">Kashmir</span>
+           
+  <div className="flex items-center gap-2 text-center">
+    <h1 className="text-xl font-extrabold tracking-tight">
+      Orchard Hospital
+    </h1>
+    <span className="text-xs font-bold bg-white/15 px-2 py-0.5 rounded-full text-slate-200">
+      Kashmir
+    </span>
+ 
                 {/* RBAC badge */}
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                   isDoctor ? 'bg-blue-500/30 text-blue-200' : 'bg-green-500/30 text-green-200'
