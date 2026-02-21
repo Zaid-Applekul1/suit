@@ -1,12 +1,24 @@
+/**
+ * AuthContext.tsx
+ *
+ * RBAC-aware auth context.
+ * - Reads `role` and `doctor_type` from the `profiles` table.
+ * - Exposes `userRole: 'Doctor' | 'Grower' | null` so every component
+ *   can gate UI without extra DB calls.
+ */
+
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import type { User } from '../types';
 
+export type UserRole = 'Doctor' | 'Grower' | null;
+
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
+  userRole: UserRole;          // ← NEW: 'Doctor' | 'Grower' | null
   loading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -28,38 +40,46 @@ const mapProfile = (authUser: SupabaseUser, profile: any | null): User => {
     address: profile?.address ?? undefined,
     language: profile?.language ?? undefined,
     currency: profile?.currency ?? undefined,
+    // RBAC additions (stored on the User object for convenience)
+    role: profile?.role ?? authUser.user_metadata?.role ?? null,
+    doctorType: profile?.doctor_type ?? authUser.user_metadata?.doctorType ?? null,
   };
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (authUser: SupabaseUser | null) => {
     if (!authUser) {
       setUser(null);
+      setUserRole(null);
       return;
     }
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, name, email, phone, farm_name, avatar_url, khasra_number, khata_number, whatsapp, address, language, currency')
+      .select(
+        'id, name, email, phone, farm_name, avatar_url, khasra_number, khata_number, whatsapp, address, language, currency, role, doctor_type'
+      )
       .eq('id', authUser.id)
       .single();
 
-    if (error) {
-      setUser(mapProfile(authUser, null));
-      return;
-    }
+    const mapped = mapProfile(authUser, error ? null : data);
+    setUser(mapped);
 
-    setUser(mapProfile(authUser, data));
+    // Derive role — prefer DB profile, fall back to JWT metadata
+    const role: UserRole =
+      (data?.role as UserRole) ??
+      (authUser.user_metadata?.role as UserRole) ??
+      null;
+    setUserRole(role);
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (!session?.user) {
-      return;
-    }
+    if (!session?.user) return;
     await loadProfile(session.user);
   }, [loadProfile, session?.user]);
 
@@ -68,9 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const init = async () => {
       const { data } = await supabase.auth.getSession();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setSession(data.session ?? null);
       await loadProfile(data.session?.user ?? null);
       setLoading(false);
@@ -94,8 +112,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const value = useMemo(
-    () => ({ session, user, loading, refreshProfile, signOut }),
-    [session, user, loading, refreshProfile, signOut]
+    () => ({ session, user, userRole, loading, refreshProfile, signOut }),
+    [session, user, userRole, loading, refreshProfile, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

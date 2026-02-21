@@ -1,10 +1,28 @@
+/**
+ * OrchardDoctor.tsx  — RBAC-aware Orchard Hospital dashboard
+ *
+ * RBAC rules implemented here:
+ *
+ *  DOCTOR (role === 'Doctor'):
+ *    - Lands DIRECTLY in the doctor portal (no portal toggle shown)
+ *    - NO field selector shown (doctors don't own fields)
+ *    - Sees: Patient Queue · Issued Prescriptions
+ *    - On first entry, if no doctor profile exists, shows DoctorRegistrationForm
+ *      (but since Signup now creates the doctors row, this is a fallback only)
+ *
+ *  GROWER (role === 'Grower' or unknown):
+ *    - Sees FULL grower portal (field selector, request consult, prescriptions, doctors list)
+ *    - No doctor portal tab / toggle
+ *    - Map viewer field context comes from the grower's own fields
+ */
+
 import { useState, useMemo, useEffect } from 'react';
 import {
   Stethoscope, Video, Phone, MessageSquare, MapPin, Plus, Trash2,
   CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Send, FileText,
   Activity, User, Calendar, Leaf, Wrench, Bell, ArrowRight, X,
   RefreshCw, Smartphone, Building2, BadgeCheck, FlaskConical,
-  ClipboardList, Zap, Loader2, UserPlus, Edit2, ToggleLeft, ToggleRight,
+  ClipboardList, Zap, Loader2, UserPlus, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 
 import { useOrchardDoctor } from '../hooks/useOrchardDoctor';
@@ -16,7 +34,7 @@ import type {
 } from '../lib/database.types';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   STATIC REFERENCE DATA  (UI labels only — no fake doctor IDs)
+   STATIC REFERENCE DATA
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const ACTION_CATEGORIES: { key: ActionCategory; label: string; color: string; icon: React.ElementType }[] = [
@@ -102,8 +120,7 @@ function ActionItemBadge({ category }: { category: ActionCategory }) {
   const Icon = meta.icon;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold border ${meta.color}`}>
-      <Icon className="w-3 h-3" />
-      {meta.label}
+      <Icon className="w-3 h-3" />{meta.label}
     </span>
   );
 }
@@ -119,8 +136,7 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DOCTOR REGISTRATION FORM
-   Shown when the user enters Doctor portal but has no profile yet.
+   DOCTOR REGISTRATION FORM  (fallback if profile wasn't created at signup)
 ═══════════════════════════════════════════════════════════════════════════ */
 
 function DoctorRegistrationForm({
@@ -137,12 +153,12 @@ function DoctorRegistrationForm({
     bio?: string;
   }) => void;
 }) {
-  const [name, setName]             = useState('');
-  const [spec, setSpec]             = useState('');
-  const [hospital, setHospital]     = useState('');
-  const [phone, setPhone]           = useState('');
-  const [email, setEmail]           = useState('');
-  const [bio, setBio]               = useState('');
+  const [name, setName]         = useState('');
+  const [spec, setSpec]         = useState('');
+  const [hospital, setHospital] = useState('');
+  const [phone, setPhone]       = useState('');
+  const [email, setEmail]       = useState('');
+  const [bio, setBio]           = useState('');
 
   const canSubmit = name.trim() && spec.trim() && hospital.trim() && !mutating;
 
@@ -155,84 +171,53 @@ function DoctorRegistrationForm({
               <UserPlus className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-white font-extrabold text-lg">Register as a Doctor</p>
-              <p className="text-slate-300 text-xs mt-0.5">Create your doctor profile to start receiving consultation requests</p>
+              <p className="text-white font-extrabold text-lg">Complete Doctor Profile</p>
+              <p className="text-slate-300 text-xs mt-0.5">Fill in your details to start receiving consultation requests</p>
             </div>
           </div>
         </div>
-
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-600 block mb-1">Full Name *</label>
-              <input
-                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder="Dr. Full Name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-              />
+              <input className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="Dr. Full Name" value={name} onChange={e => setName(e.target.value)} />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-600 block mb-1">Specialization *</label>
-              <input
-                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder="e.g. Plant Pathology"
-                value={spec}
-                onChange={e => setSpec(e.target.value)}
-              />
+              <input className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="e.g. Plant Pathology" value={spec} onChange={e => setSpec(e.target.value)} />
             </div>
           </div>
-
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-1">Hospital / Clinic Name *</label>
-            <input
-              className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-              placeholder="e.g. Orchard Hospital Kashmir"
-              value={hospital}
-              onChange={e => setHospital(e.target.value)}
-            />
+            <input className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="e.g. Orchard Hospital Kashmir" value={hospital} onChange={e => setHospital(e.target.value)} />
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-600 block mb-1">Phone</label>
-              <input
-                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder="+91 XXXXX XXXXX"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-              />
+              <input className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="+91 XXXXX XXXXX" value={phone} onChange={e => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-600 block mb-1">Email</label>
-              <input
-                type="email"
-                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder="doctor@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-              />
+              <input type="email" className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="doctor@example.com" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
           </div>
-
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-1">Bio / About</label>
-            <textarea
-              rows={2}
-              className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-              placeholder="Brief description of your expertise..."
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-            />
+            <textarea rows={2} className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="Brief description of your expertise..." value={bio} onChange={e => setBio(e.target.value)} />
           </div>
-
           <button
             onClick={() => canSubmit && onRegister({ name, specialization: spec, hospitalName: hospital, phone: phone || undefined, email: email || undefined, bio: bio || undefined })}
             disabled={!canSubmit}
             className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white py-3 rounded-xl font-extrabold text-sm transition shadow-lg"
           >
             {mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
-            Create Doctor Profile
+            Save Doctor Profile
           </button>
         </div>
       </SectionCard>
@@ -241,13 +226,11 @@ function DoctorRegistrationForm({
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DOCTOR PROFILE CARD  (shown at the top of the doctor portal)
+   DOCTOR PROFILE CARD
 ═══════════════════════════════════════════════════════════════════════════ */
 
 function DoctorProfileCard({
-  profile,
-  mutating,
-  onToggleAvailable,
+  profile, mutating, onToggleAvailable,
 }: {
   profile: DoctorProfile;
   mutating: boolean;
@@ -265,8 +248,7 @@ function DoctorProfileCard({
           {profile.phone && <p className="text-xs text-gray-400">{profile.phone}</p>}
         </div>
         <button
-          onClick={onToggleAvailable}
-          disabled={mutating}
+          onClick={onToggleAvailable} disabled={mutating}
           title={profile.available ? 'Mark as Unavailable' : 'Mark as Available'}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm border transition disabled:opacity-50 ${
             profile.available
@@ -308,8 +290,7 @@ function PrescriptionCard({
 
   return (
     <div className={`rounded-2xl border-2 overflow-hidden shadow-lg ${borderColor}`}>
-      <div className={`px-5 py-4 flex items-start justify-between cursor-pointer ${headerBg}`}
-           onClick={() => setOpen(!open)}>
+      <div className={`px-5 py-4 flex items-start justify-between cursor-pointer ${headerBg}`} onClick={() => setOpen(!open)}>
         <div className="flex items-start gap-3">
           <div className={`p-2.5 rounded-xl ${iconBg}`}>
             <FileText className={`w-5 h-5 ${iconColor}`} />
@@ -372,36 +353,26 @@ function PrescriptionCard({
 
           {rx.status === 'PENDING' && (
             <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                onClick={onExecute}
-                disabled={mutating}
-                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-200 transition"
-              >
+              <button onClick={onExecute} disabled={mutating}
+                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-200 transition">
                 {mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                 Execute Prescription
               </button>
-              <button
-                onClick={showWhatsApp}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition"
-              >
+              <button onClick={showWhatsApp}
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition">
                 <Smartphone className="w-4 h-4" />View WhatsApp
               </button>
-              <button
-                onClick={onFlagCorrection}
-                disabled={mutating}
-                className="flex items-center gap-2 border border-amber-400 text-amber-700 px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber-50 disabled:opacity-50 transition"
-              >
+              <button onClick={onFlagCorrection} disabled={mutating}
+                className="flex items-center gap-2 border border-amber-400 text-amber-700 px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber-50 disabled:opacity-50 transition">
                 <RefreshCw className="w-4 h-4" />Request Correction
               </button>
             </div>
           )}
-
           {rx.status === 'APPLIED' && (
             <div className="flex items-center gap-2 text-green-700 font-semibold text-sm bg-green-50 rounded-xl px-4 py-2.5 border border-green-200">
               <CheckCircle2 className="w-4 h-4" />Executed — Costs logged to Expense Tracker
             </div>
           )}
-
           {rx.status === 'NEEDS_CORRECTION' && (
             <div className="flex items-center gap-2 text-amber-700 font-semibold text-sm bg-amber-50 rounded-xl px-4 py-2.5 border border-amber-200">
               <RefreshCw className="w-4 h-4" />Correction requested — Doctor will review
@@ -450,7 +421,7 @@ function WhatsAppModal({ message, hospitalName, onClose }: { message: string; ho
           </div>
         </div>
         <div className="px-5 pb-5 pt-2">
-          <p className="text-xs text-gray-500 mb-3">This message will be sent to the grower's registered WhatsApp number when the prescription is issued.</p>
+          <p className="text-xs text-gray-500 mb-3">This message will be sent to the grower's registered WhatsApp when the prescription is issued.</p>
           <button onClick={onClose} className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-sm">
             Close Preview
           </button>
@@ -482,20 +453,15 @@ function PrescriptionBuilder({
   }) => void;
   onCancel: () => void;
 }) {
-  const [issue, setIssue] = useState('');
-  const [eppo, setEppo] = useState('');
+  const [issue, setIssue]               = useState('');
+  const [eppo, setEppo]                 = useState('');
   const [recommendation, setRecommendation] = useState('');
-  const [followUp, setFollowUp] = useState('');
-  const [items, setItems] = useState<Array<{ id: string; category: ActionCategory; productName: string; dosage: string; estimatedCost: number }>>([]);
+  const [followUp, setFollowUp]         = useState('');
+  const [items, setItems]               = useState<Array<{ id: string; category: ActionCategory; productName: string; dosage: string; estimatedCost: number }>>([]);
 
-  const addItem = () =>
-    setItems(prev => [...prev, { id: uid(), category: 'FUNGICIDE', productName: '', dosage: '', estimatedCost: 0 }]);
-
-  const updateItem = (id: string, key: string, value: unknown) =>
-    setItems(prev => prev.map(it => it.id === id ? { ...it, [key]: value } : it));
-
-  const removeItem = (id: string) =>
-    setItems(prev => prev.filter(it => it.id !== id));
+  const addItem = () => setItems(prev => [...prev, { id: uid(), category: 'FUNGICIDE', productName: '', dosage: '', estimatedCost: 0 }]);
+  const updateItem = (id: string, key: string, value: unknown) => setItems(prev => prev.map(it => it.id === id ? { ...it, [key]: value } : it));
+  const removeItem = (id: string) => setItems(prev => prev.filter(it => it.id !== id));
 
   const totalCost = items.reduce((s, a) => s + a.estimatedCost, 0);
   const canIssue = issue.trim() && recommendation.trim() && items.length > 0 && followUp && !mutating;
@@ -521,9 +487,7 @@ function PrescriptionBuilder({
       <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-screen overflow-y-auto">
         <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-5 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <Stethoscope className="w-5 h-5 text-white" />
-            </div>
+            <div className="p-2 bg-white/20 rounded-xl"><Stethoscope className="w-5 h-5 text-white" /></div>
             <div>
               <p className="text-white font-extrabold">Prescription Builder</p>
               <p className="text-slate-300 text-xs">{doctor.name} · {doctor.hospitalName}</p>
@@ -551,32 +515,19 @@ function PrescriptionBuilder({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
                 <label className="text-xs text-gray-500 block mb-1">Issue / Disease Diagnosed *</label>
-                <input
-                  className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  placeholder="e.g. Apple Scab (Venturia inaequalis)"
-                  value={issue}
-                  onChange={e => setIssue(e.target.value)}
-                />
+                <input className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  placeholder="e.g. Apple Scab (Venturia inaequalis)" value={issue} onChange={e => setIssue(e.target.value)} />
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">EPPO Code (optional)</label>
-                <input
-                  className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  placeholder="VENTIN"
-                  value={eppo}
-                  onChange={e => setEppo(e.target.value)}
-                />
+                <input className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  placeholder="VENTIN" value={eppo} onChange={e => setEppo(e.target.value)} />
               </div>
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">Recommendation / Remedy *</label>
-              <textarea
-                rows={2}
-                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder="Describe the corrective action and rationale..."
-                value={recommendation}
-                onChange={e => setRecommendation(e.target.value)}
-              />
+              <textarea rows={2} className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="Describe the corrective action and rationale..." value={recommendation} onChange={e => setRecommendation(e.target.value)} />
             </div>
           </div>
 
@@ -584,52 +535,30 @@ function PrescriptionBuilder({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="font-bold text-gray-700 text-sm uppercase tracking-wide">Step 2 — Action Items</p>
-              <button
-                onClick={addItem}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
-              >
+              <button onClick={addItem}
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition">
                 <Plus className="w-3.5 h-3.5" /> Add Item
               </button>
             </div>
-
             {items.length === 0 && (
               <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
                 Click "Add Item" to add chemicals, fertilizers or labor instructions
               </div>
             )}
-
             <div className="space-y-2">
               {items.map(item => (
                 <div key={item.id} className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-start bg-gray-50 border rounded-xl p-3">
-                  <select
-                    className="border rounded-lg px-2 py-2 text-xs bg-white"
-                    value={item.category}
-                    onChange={e => updateItem(item.id, 'category', e.target.value)}
-                  >
-                    {ACTION_CATEGORIES.map(c => (
-                      <option key={c.key} value={c.key}>{c.label}</option>
-                    ))}
+                  <select className="border rounded-lg px-2 py-2 text-xs bg-white" value={item.category}
+                    onChange={e => updateItem(item.id, 'category', e.target.value)}>
+                    {ACTION_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                   </select>
-                  <input
-                    className="border rounded-lg px-2 py-2 text-xs sm:col-span-2"
-                    placeholder="Product / Action Name"
-                    value={item.productName}
-                    onChange={e => updateItem(item.id, 'productName', e.target.value)}
-                  />
-                  <input
-                    className="border rounded-lg px-2 py-2 text-xs"
-                    placeholder="Dosage (e.g. 500g/200L)"
-                    value={item.dosage}
-                    onChange={e => updateItem(item.id, 'dosage', e.target.value)}
-                  />
+                  <input className="border rounded-lg px-2 py-2 text-xs sm:col-span-2" placeholder="Product / Action Name"
+                    value={item.productName} onChange={e => updateItem(item.id, 'productName', e.target.value)} />
+                  <input className="border rounded-lg px-2 py-2 text-xs" placeholder="Dosage (e.g. 500g/200L)"
+                    value={item.dosage} onChange={e => updateItem(item.id, 'dosage', e.target.value)} />
                   <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      className="border rounded-lg px-2 py-2 text-xs flex-1"
-                      placeholder="Est. Cost ₹"
-                      value={item.estimatedCost || ''}
-                      onChange={e => updateItem(item.id, 'estimatedCost', +e.target.value)}
-                    />
+                    <input type="number" className="border rounded-lg px-2 py-2 text-xs flex-1" placeholder="Est. Cost ₹"
+                      value={item.estimatedCost || ''} onChange={e => updateItem(item.id, 'estimatedCost', +e.target.value)} />
                     <button onClick={() => removeItem(item.id)} className="text-red-400 hover:text-red-600 shrink-0 p-1">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -637,7 +566,6 @@ function PrescriptionBuilder({
                 </div>
               ))}
             </div>
-
             {items.length > 0 && (
               <div className="flex justify-between text-sm font-bold text-gray-700 bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200">
                 <span>Total Estimated Cost</span>
@@ -651,24 +579,15 @@ function PrescriptionBuilder({
             <p className="font-bold text-gray-700 text-sm uppercase tracking-wide">Step 3 — Follow-up</p>
             <div>
               <label className="text-xs text-gray-500 block mb-1">Follow-up Date *</label>
-              <input
-                type="date"
-                className="border rounded-xl px-3 py-2.5 text-sm w-full"
-                value={followUp}
-                onChange={e => setFollowUp(e.target.value)}
-              />
+              <input type="date" className="border rounded-xl px-3 py-2.5 text-sm w-full"
+                value={followUp} onChange={e => setFollowUp(e.target.value)} />
             </div>
           </div>
 
           <div className="flex gap-3 pt-2 border-t">
-            <button
-              onClick={handleIssue}
-              disabled={!canIssue}
-              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 disabled:opacity-40 text-white py-3 rounded-xl font-extrabold text-sm transition shadow-lg"
-            >
-              {mutating
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <BadgeCheck className="w-4 h-4" />}
+            <button onClick={handleIssue} disabled={!canIssue}
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 disabled:opacity-40 text-white py-3 rounded-xl font-extrabold text-sm transition shadow-lg">
+              {mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
               Issue Digital Prescription
             </button>
             <button onClick={onCancel} className="px-5 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
@@ -712,20 +631,23 @@ export default function OrchardDoctor({
   orchardName: propOrchardName,
   onExpenseLog,
 }: OrchardDoctorProps) {
-  /* ── Auth ── */
-  const { user } = useAuth();
+  /* ── Auth + RBAC ── */
+  const { user, userRole } = useAuth();
   const userId = user?.id ?? '';
+  const isDoctor = userRole === 'Doctor';
+
   const resolvedGrowerName  = growerName  || (user as any)?.name  || '';
   const resolvedGrowerPhone = growerPhone || (user as any)?.phone || '';
 
-  /* ── Field selector state ── */
-  const [userFields, setUserFields] = useState<Array<{ id: string; name: string }>>([]);
+  /* ── Field selector state (Growers only) ── */
+  const [userFields, setUserFields]           = useState<Array<{ id: string; name: string }>>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string>(propFieldId ?? '');
   const [selectedFieldName, setSelectedFieldName] = useState<string>(propOrchardName ?? '');
-  const [fieldsLoading, setFieldsLoading] = useState(!propFieldId);
+  const [fieldsLoading, setFieldsLoading]     = useState(!isDoctor && !propFieldId);
 
+  // Load the grower's own fields from the orchard map (skipped for doctors)
   useEffect(() => {
-    if (propFieldId || !userId) return;
+    if (isDoctor || propFieldId || !userId) return;
     setFieldsLoading(true);
     supabase
       .from('fields')
@@ -740,26 +662,28 @@ export default function OrchardDoctor({
         }
         setFieldsLoading(false);
       });
-  }, [userId, propFieldId]);
+  }, [userId, propFieldId, isDoctor]);
 
-  const fieldId     = propFieldId    ?? selectedFieldId;
-  const orchardName = propOrchardName ?? selectedFieldName;
+  const fieldId     = isDoctor ? '' : (propFieldId ?? selectedFieldId);
+  const orchardName = isDoctor ? '' : (propOrchardName ?? selectedFieldName);
 
-  const db = useOrchardDoctor(fieldId, userId, resolvedGrowerName, resolvedGrowerPhone);
+  /* ── Hook ── */
+  const db = useOrchardDoctor(fieldId, userId, resolvedGrowerName, resolvedGrowerPhone, userRole);
 
   /* ── Local UI state ── */
-  const [portalMode, setPortalMode] = useState<'grower' | 'doctor'>('grower');
-  const [tab, setTab]               = useState<'consult' | 'prescriptions' | 'doctors'>('consult');
-  const [newType, setNewType]       = useState<ConsultType>('VIDEO');
+  // For doctors: portal is always 'doctor'. For growers: always 'grower'. No toggle.
+  const portalMode = isDoctor ? 'doctor' : 'grower';
+  const [tab, setTab]                 = useState<'consult' | 'prescriptions' | 'doctors'>('consult');
+  const [newType, setNewType]         = useState<ConsultType>('VIDEO');
   const [newDateTime, setNewDateTime] = useState(nowISO());
-  const [newNotes, setNewNotes]     = useState('');
+  const [newNotes, setNewNotes]       = useState('');
   const [newDoctorId, setNewDoctorId] = useState('');
   const [showNewConsult, setShowNewConsult] = useState(false);
   const [builderConsult, setBuilderConsult] = useState<ConsultationRequest | null>(null);
-  const [whatsAppRx, setWhatsAppRx] = useState<DigitalPrescription | null>(null);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [whatsAppRx, setWhatsAppRx]   = useState<DigitalPrescription | null>(null);
+  const [localError, setLocalError]   = useState<string | null>(null);
 
-  // Default to first available doctor when doctors list loads
+  // Default to first available doctor
   useEffect(() => {
     if (!newDoctorId && db.doctors.length > 0) {
       const first = db.doctors.find(d => d.available) ?? db.doctors[0];
@@ -767,11 +691,10 @@ export default function OrchardDoctor({
     }
   }, [db.doctors, newDoctorId]);
 
-  /* ── Dismiss combined error ── */
-  const errorMsg = db.error || localError;
-  const dismissError = () => { setLocalError(null); };
+  const errorMsg    = db.error || localError;
+  const dismissError = () => setLocalError(null);
 
-  /* ── Submit new consultation ── */
+  /* ── Submit new consultation (growers only) ── */
   const handleRequestConsultation = async () => {
     if (!newDateTime || !newDoctorId) return;
     await db.requestConsultation({
@@ -786,7 +709,7 @@ export default function OrchardDoctor({
     setShowNewConsult(false);
   };
 
-  /* ── Issue prescription (from builder) ── */
+  /* ── Issue prescription ── */
   const handleIssueRx = async (payload: Parameters<typeof db.issueRx>[0]) => {
     await db.issueRx(payload);
     setBuilderConsult(null);
@@ -795,7 +718,7 @@ export default function OrchardDoctor({
     if (fresh) setWhatsAppRx(fresh);
   };
 
-  /* ── Execute prescription + fire expense callback ── */
+  /* ── Execute prescription ── */
   const handleExecuteRx = async (rx: DigitalPrescription) => {
     await db.executeRx(rx.id);
     if (onExpenseLog) {
@@ -813,7 +736,6 @@ export default function OrchardDoctor({
     }
   };
 
-  /* ── Available doctors for grower picker ── */
   const availableDoctors = useMemo(() => db.doctors.filter(d => d.available), [db.doctors]);
 
   /* ═══ RENDER ════════════════════════════════════════════════════════════ */
@@ -828,7 +750,6 @@ export default function OrchardDoctor({
           onClose={() => setWhatsAppRx(null)}
         />
       )}
-
       {builderConsult && db.myDoctorProfile && (
         <PrescriptionBuilder
           consultation={builderConsult}
@@ -850,11 +771,21 @@ export default function OrchardDoctor({
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-extrabold tracking-tight">Orchard Hospital</h1>
                 <span className="text-xs font-bold bg-white/15 px-2 py-0.5 rounded-full text-slate-200">Kashmir</span>
+                {/* RBAC badge */}
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  isDoctor ? 'bg-blue-500/30 text-blue-200' : 'bg-green-500/30 text-green-200'
+                }`}>
+                  {isDoctor ? '🩺 Doctor Portal' : '🌿 Grower Portal'}
+                </span>
               </div>
               <p className="text-slate-400 text-xs mt-0.5">
-                Telehealth & Agronomist Dispatch · Grower: {growerName}
+                {isDoctor
+                  ? `Dr. ${resolvedGrowerName} — Telehealth Portal`
+                  : `Telehealth & Agronomist Dispatch · Grower: ${resolvedGrowerName}`}
               </p>
-              {!propFieldId && (
+
+              {/* Field selector — Growers only */}
+              {!isDoctor && !propFieldId && (
                 <div className="mt-2 flex items-center gap-2">
                   {fieldsLoading ? (
                     <span className="text-slate-400 text-xs flex items-center gap-1">
@@ -882,35 +813,17 @@ export default function OrchardDoctor({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={db.reload}
-              disabled={db.loading}
-              title="Refresh data"
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition disabled:opacity-40"
-            >
+          {/* Refresh — only for growers (doctors have their own refresh in the queue) */}
+          {!isDoctor && (
+            <button onClick={db.reload} disabled={db.loading} title="Refresh data"
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition disabled:opacity-40">
               <RefreshCw className={`w-4 h-4 ${db.loading ? 'animate-spin' : ''}`} />
             </button>
-
-            {/* Portal toggle */}
-            <div className="flex gap-1 bg-white/10 rounded-xl p-1">
-              {(['grower', 'doctor'] as const).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => { setPortalMode(mode); setTab('consult'); }}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition capitalize ${
-                    portalMode === mode ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  {mode === 'grower' ? '🌿 Grower' : '🩺 Doctor'}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Pending Rx alert */}
-        {db.pendingRxCount > 0 && portalMode === 'grower' && (
+        {/* Pending Rx alert (growers only) */}
+        {db.pendingRxCount > 0 && !isDoctor && (
           <div className="mt-3 flex items-center gap-2 bg-red-500/90 rounded-xl px-4 py-2.5 border border-red-400">
             <Bell className="w-4 h-4 text-white shrink-0" />
             <p className="text-white text-sm font-bold flex-1">
@@ -926,20 +839,35 @@ export default function OrchardDoctor({
       {/* ═══ TABS ════════════════════════════════════════════════════════ */}
       <div className="px-6 pt-5">
         <div className="flex gap-1 bg-white border rounded-xl p-1 shadow-sm">
-          {portalMode === 'grower' ? (
+          {/* Doctor tabs */}
+          {isDoctor && (
+            <>
+              {([
+                { key: 'consult',       label: 'Patient Queue',        icon: ClipboardList },
+                { key: 'prescriptions', label: 'Issued Prescriptions', icon: FileText      },
+              ] as const).map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition ${
+                    tab === t.key ? 'bg-slate-800 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
+                  }`}>
+                  <t.icon className="w-4 h-4" />{t.label}
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* Grower tabs */}
+          {!isDoctor && (
             <>
               {([
                 { key: 'consult',       label: 'Request Consult',  icon: MessageSquare },
                 { key: 'prescriptions', label: 'My Prescriptions', icon: FileText      },
                 { key: 'doctors',       label: 'Our Doctors',      icon: User          },
               ] as const).map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
+                <button key={t.key} onClick={() => setTab(t.key)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition relative ${
                     tab === t.key ? 'bg-slate-800 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
+                  }`}>
                   <t.icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{t.label}</span>
                   {t.key === 'prescriptions' && db.pendingRxCount > 0 && (
@@ -950,24 +878,6 @@ export default function OrchardDoctor({
                 </button>
               ))}
             </>
-          ) : (
-            <>
-              {([
-                { key: 'consult',       label: 'Patient Queue',        icon: ClipboardList },
-                { key: 'prescriptions', label: 'Issued Prescriptions', icon: FileText      },
-              ] as const).map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition ${
-                    tab === t.key ? 'bg-slate-800 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <t.icon className="w-4 h-4" />
-                  {t.label}
-                </button>
-              ))}
-            </>
           )}
         </div>
       </div>
@@ -975,31 +885,13 @@ export default function OrchardDoctor({
       <div className="px-6 py-6 space-y-5">
 
         {/* Error banner */}
-        {errorMsg && (
-          <ErrorBanner message={errorMsg} onDismiss={dismissError} />
-        )}
-
-        {/* Field-fetch loading skeleton */}
-        {fieldsLoading && (
-          <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Loading your orchards…</span>
-          </div>
-        )}
-
-        {!fieldsLoading && !fieldId && (
-          <div className="text-center py-16 text-gray-500">
-            <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="text-sm font-medium">No orchard found. Please create an orchard in the Fields page first.</p>
-          </div>
-        )}
+        {errorMsg && <ErrorBanner message={errorMsg} onDismiss={dismissError} />}
 
         {/* ══════════════════════════════════════════════════════════════
             DOCTOR PORTAL
         ══════════════════════════════════════════════════════════════ */}
         {portalMode === 'doctor' && (
           <>
-            {/* Loading doctor profile */}
             {db.myDoctorProfileLoading && (
               <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -1007,24 +899,17 @@ export default function OrchardDoctor({
               </div>
             )}
 
-            {/* Not registered yet — show registration form */}
+            {/* Fallback registration (if signup didn't create doctors row) */}
             {!db.myDoctorProfileLoading && !db.myDoctorProfile && (
-              <DoctorRegistrationForm
-                mutating={db.mutating}
-                onRegister={db.registerAsDoctor}
-              />
+              <DoctorRegistrationForm mutating={db.mutating} onRegister={db.registerAsDoctor} />
             )}
 
-            {/* Registered doctor — show dashboard */}
             {!db.myDoctorProfileLoading && db.myDoctorProfile && (
               <div className="space-y-5">
-                {/* Profile card */}
                 <DoctorProfileCard
                   profile={db.myDoctorProfile}
                   mutating={db.mutating}
-                  onToggleAvailable={() =>
-                    db.updateMyDoctorProfile({ available: !db.myDoctorProfile!.available })
-                  }
+                  onToggleAvailable={() => db.updateMyDoctorProfile({ available: !db.myDoctorProfile!.available })}
                 />
 
                 {/* Patient Queue */}
@@ -1036,11 +921,9 @@ export default function OrchardDoctor({
                         <Badge className="text-slate-700 bg-slate-100 border-slate-300">
                           {db.doctorConsultations.length} Request{db.doctorConsultations.length !== 1 ? 's' : ''}
                         </Badge>
-                        <button
-                          onClick={() => db.reloadDoctorConsultations(db.myDoctorProfile!.id)}
+                        <button onClick={() => db.reloadDoctorConsultations(db.myDoctorProfile!.id)}
                           disabled={db.doctorConsultationsLoading}
-                          className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                        >
+                          className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
                           <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${db.doctorConsultationsLoading ? 'animate-spin' : ''}`} />
                         </button>
                       </div>
@@ -1085,33 +968,25 @@ export default function OrchardDoctor({
                                   )}
                                 </div>
                               </div>
-
                               <div className="flex items-center gap-2 flex-wrap">
                                 {c.status === 'REQUESTED' && (
-                                  <button
-                                    onClick={() => db.acceptRequest(c.id, db.myDoctorProfile!.id)}
-                                    disabled={db.mutating}
-                                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
-                                  >
+                                  <button onClick={() => db.acceptRequest(c.id, db.myDoctorProfile!.id)} disabled={db.mutating}
+                                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
                                     {db.mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                     Accept
                                   </button>
                                 )}
                                 {c.status === 'IN_PROGRESS' && !c.prescription && (
-                                  <button
-                                    onClick={() => setBuilderConsult(c)}
-                                    className="flex items-center gap-1.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow"
-                                  >
+                                  <button onClick={() => setBuilderConsult(c)}
+                                    className="flex items-center gap-1.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow">
                                     <FileText className="w-4 h-4" /> Write Prescription
                                   </button>
                                 )}
                                 {c.prescription && (
                                   <div className="flex items-center gap-2">
                                     <Badge className={RX_STATUS_META[c.prescription.status].color}>Rx Issued</Badge>
-                                    <button
-                                      onClick={() => setWhatsAppRx(c.prescription!)}
-                                      className="flex items-center gap-1.5 border border-teal-500 text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-50 transition"
-                                    >
+                                    <button onClick={() => setWhatsAppRx(c.prescription!)}
+                                      className="flex items-center gap-1.5 border border-teal-500 text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-50 transition">
                                       <Smartphone className="w-3.5 h-3.5" /> WhatsApp
                                     </button>
                                   </div>
@@ -1130,9 +1005,9 @@ export default function OrchardDoctor({
                   <div className="space-y-4">
                     <h2 className="font-extrabold text-gray-800 text-base">Issued Prescriptions</h2>
                     {(() => {
-                      const doctorRxs = db.allPrescriptions.filter(
-                        rx => rx.doctorName === db.myDoctorProfile!.name
-                      );
+                      const doctorRxs = db.doctorConsultations
+                        .flatMap(c => c.prescription ? [c.prescription] : [])
+                        .filter(rx => rx.doctorName === db.myDoctorProfile!.name);
                       return doctorRxs.length === 0 ? (
                         <div className="text-center py-16 text-gray-400">
                           <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
@@ -1140,10 +1015,7 @@ export default function OrchardDoctor({
                         </div>
                       ) : (
                         doctorRxs.map(rx => (
-                          <PrescriptionCard
-                            key={rx.id}
-                            rx={rx}
-                            mutating={db.mutating}
+                          <PrescriptionCard key={rx.id} rx={rx} mutating={db.mutating}
                             onExecute={() => handleExecuteRx(rx)}
                             onFlagCorrection={() => db.flagCorrection(rx.id)}
                             showWhatsApp={() => setWhatsAppRx(rx)}
@@ -1161,284 +1033,260 @@ export default function OrchardDoctor({
         {/* ══════════════════════════════════════════════════════════════
             GROWER PORTAL
         ══════════════════════════════════════════════════════════════ */}
-        {portalMode === 'grower' && !fieldsLoading && fieldId && (
+        {portalMode === 'grower' && (
           <>
-            {/* Global loading skeleton */}
-            {db.loading && (
+            {/* Field loading skeleton */}
+            {fieldsLoading && (
               <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm">Loading from Supabase...</span>
+                <span className="text-sm">Loading your orchards…</span>
               </div>
             )}
 
-            {!db.loading && (
+            {!fieldsLoading && !fieldId && (
+              <div className="text-center py-16 text-gray-500">
+                <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p className="text-sm font-medium">No orchard found. Please create an orchard in the Fields page first.</p>
+              </div>
+            )}
+
+            {!fieldsLoading && fieldId && (
               <>
-                {/* ═══ GROWER — REQUEST CONSULTATION ══════════════════════════ */}
-                {tab === 'consult' && (
-                  <div className="space-y-5">
-                    <SectionCard>
-                      <div className="px-6 py-5">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h2 className="font-extrabold text-gray-800 text-base">Request a Consultation</h2>
-                            <p className="text-xs text-gray-500 mt-0.5">Connect with a certified Agronomist instantly</p>
-                          </div>
-                          {!showNewConsult && (
-                            <button
-                              onClick={() => setShowNewConsult(true)}
-                              disabled={availableDoctors.length === 0}
-                              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow disabled:opacity-40"
-                            >
-                              <Plus className="w-4 h-4" /> New Request
-                            </button>
-                          )}
-                        </div>
+                {db.loading && (
+                  <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Loading from Supabase...</span>
+                  </div>
+                )}
 
-                        {/* No doctors yet */}
+                {!db.loading && (
+                  <>
+                    {/* ═══ GROWER — REQUEST CONSULTATION ═══════════════════════ */}
+                    {tab === 'consult' && (
+                      <div className="space-y-5">
+                        <SectionCard>
+                          <div className="px-6 py-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <h2 className="font-extrabold text-gray-800 text-base">Request a Consultation</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">Connect with a certified Agronomist instantly</p>
+                              </div>
+                              {!showNewConsult && (
+                                <button onClick={() => setShowNewConsult(true)} disabled={availableDoctors.length === 0}
+                                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow disabled:opacity-40">
+                                  <Plus className="w-4 h-4" /> New Request
+                                </button>
+                              )}
+                            </div>
+
+                            {!db.doctorsLoading && db.doctors.length === 0 && (
+                              <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
+                                <Stethoscope className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                <p className="text-sm">No doctors have registered yet.</p>
+                              </div>
+                            )}
+
+                            {db.doctors.length > 0 && (
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                                {CONSULT_TYPES.map(t => {
+                                  const Icon = t.icon;
+                                  const selected = newType === t.key;
+                                  return (
+                                    <button key={t.key}
+                                      onClick={() => { setNewType(t.key); setShowNewConsult(true); }}
+                                      className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 font-semibold text-sm transition ${
+                                        selected
+                                          ? `bg-gradient-to-br ${t.color} text-white border-transparent shadow-lg -translate-y-1`
+                                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Icon className={`w-6 h-6 ${selected ? 'text-white' : 'text-gray-500'}`} />
+                                      <span>{t.label}</span>
+                                      <span className={`text-xs ${selected ? 'text-white/75' : 'text-gray-400'}`}>{t.desc}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {showNewConsult && (
+                              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4 mt-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-xs text-gray-500 block mb-1">Preferred Date & Time</label>
+                                    <input type="datetime-local" className="border rounded-xl px-3 py-2.5 text-sm w-full"
+                                      value={newDateTime} onChange={e => setNewDateTime(e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-gray-500 block mb-1">Select Doctor</label>
+                                    {db.doctorsLoading ? (
+                                      <div className="flex items-center gap-2 text-gray-400 text-sm py-2.5">
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Loading doctors…
+                                      </div>
+                                    ) : availableDoctors.length === 0 ? (
+                                      <p className="text-red-500 text-xs py-2.5">No doctors available right now.</p>
+                                    ) : (
+                                      <select className="border rounded-xl px-3 py-2.5 text-sm w-full bg-white"
+                                        value={newDoctorId} onChange={e => setNewDoctorId(e.target.value)}>
+                                        {availableDoctors.map(d => (
+                                          <option key={d.id} value={d.id}>{d.name} — {d.specialization}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Describe the Issue</label>
+                                  <textarea rows={2} className="border rounded-xl px-3 py-2.5 text-sm w-full"
+                                    placeholder="Describe symptoms, affected area, urgency..."
+                                    value={newNotes} onChange={e => setNewNotes(e.target.value)} />
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={handleRequestConsultation} disabled={db.mutating || !newDoctorId}
+                                    className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-900 disabled:opacity-50 transition">
+                                    {db.mutating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    Submit Request
+                                  </button>
+                                  <button onClick={() => setShowNewConsult(false)}
+                                    className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </SectionCard>
+
+                        {db.consultations.length > 0 && (
+                          <SectionCard>
+                            <div className="px-6 py-5">
+                              <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-4">My Consultation Requests</h3>
+                              <div className="space-y-3">
+                                {db.consultations.map(c => {
+                                  const doctor     = db.doctors.find(d => d.id === c.doctorId);
+                                  const typeInfo   = CONSULT_TYPES.find(t => t.key === c.type)!;
+                                  const statusMeta = STATUS_META[c.status];
+                                  const TypeIcon   = typeInfo.icon;
+                                  return (
+                                    <div key={c.id} className="flex items-start justify-between border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50 transition">
+                                      <div className="flex items-start gap-3">
+                                        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${typeInfo.color}`}>
+                                          <TypeIcon className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div>
+                                          <p className="font-bold text-sm text-gray-800">{typeInfo.label}</p>
+                                          <p className="text-xs text-gray-500">
+                                            {new Date(c.targetDateTime).toLocaleString()} · {doctor?.name || 'Unassigned'}
+                                          </p>
+                                          {c.notes && <p className="text-xs text-gray-600 mt-0.5 max-w-xs truncate">{c.notes}</p>}
+                                          {c.prescription && (
+                                            <button onClick={() => setTab('prescriptions')}
+                                              className="mt-1 text-xs font-bold text-slate-700 underline flex items-center gap-1">
+                                              <FileText className="w-3 h-3" /> View Prescription
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <Badge className={statusMeta.color}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                                        {statusMeta.label}
+                                      </Badge>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </SectionCard>
+                        )}
+
+                        {db.consultations.length === 0 && db.doctors.length > 0 && (
+                          <div className="text-center py-16 text-gray-400">
+                            <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p className="text-sm font-medium">No consultations yet. Request your first one above.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ═══ GROWER — MY PRESCRIPTIONS ═══════════════════════ */}
+                    {tab === 'prescriptions' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h2 className="font-extrabold text-gray-800 text-base">My Digital Prescriptions</h2>
+                          <Badge className="text-gray-600 bg-gray-100 border-gray-200">{db.allPrescriptions.length} Total</Badge>
+                        </div>
+                        {db.allPrescriptions.length === 0 ? (
+                          <div className="text-center py-16 text-gray-400">
+                            <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p className="text-sm font-medium">No prescriptions issued yet. Request a consultation first.</p>
+                          </div>
+                        ) : (
+                          db.allPrescriptions.map(rx => (
+                            <PrescriptionCard key={rx.id} rx={rx} mutating={db.mutating}
+                              onExecute={() => handleExecuteRx(rx)}
+                              onFlagCorrection={() => db.flagCorrection(rx.id)}
+                              showWhatsApp={() => setWhatsAppRx(rx)}
+                            />
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* ═══ GROWER — OUR DOCTORS ════════════════════════════ */}
+                    {tab === 'doctors' && (
+                      <div className="space-y-4">
+                        <h2 className="font-extrabold text-gray-800 text-base">Certified Agronomists</h2>
+                        {db.doctorsLoading && (
+                          <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span className="text-sm">Loading doctors…</span>
+                          </div>
+                        )}
                         {!db.doctorsLoading && db.doctors.length === 0 && (
-                          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
-                            <Stethoscope className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                            <p className="text-sm">No doctors have registered yet.</p>
-                            <p className="text-xs mt-1">Doctors can sign up by switching to the Doctor portal.</p>
+                          <div className="text-center py-16 text-gray-400">
+                            <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p className="text-sm font-medium">No doctors registered yet.</p>
                           </div>
                         )}
-
-                        {/* Consult type cards */}
-                        {db.doctors.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                            {CONSULT_TYPES.map(t => {
-                              const Icon = t.icon;
-                              const selected = newType === t.key;
-                              return (
-                                <button
-                                  key={t.key}
-                                  onClick={() => { setNewType(t.key); setShowNewConsult(true); }}
-                                  className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 font-semibold text-sm transition ${
-                                    selected
-                                      ? `bg-gradient-to-br ${t.color} text-white border-transparent shadow-lg -translate-y-1`
-                                      : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  <Icon className={`w-6 h-6 ${selected ? 'text-white' : 'text-gray-500'}`} />
-                                  <span>{t.label}</span>
-                                  <span className={`text-xs ${selected ? 'text-white/75' : 'text-gray-400'}`}>{t.desc}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {showNewConsult && (
-                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4 mt-2">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <label className="text-xs text-gray-500 block mb-1">Preferred Date & Time</label>
-                                <input
-                                  type="datetime-local"
-                                  className="border rounded-xl px-3 py-2.5 text-sm w-full"
-                                  value={newDateTime}
-                                  onChange={e => setNewDateTime(e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-gray-500 block mb-1">Select Doctor</label>
-                                {db.doctorsLoading ? (
-                                  <div className="flex items-center gap-2 text-gray-400 text-sm py-2.5">
-                                    <Loader2 className="w-4 h-4 animate-spin" /> Loading doctors…
+                        {!db.doctorsLoading && db.doctors.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {db.doctors.map(doctor => (
+                              <div key={doctor.id} className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
+                                <div className="bg-gradient-to-br from-slate-700 to-slate-900 px-5 py-6 text-center">
+                                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+                                    <Stethoscope className="w-8 h-8 text-white" />
                                   </div>
-                                ) : availableDoctors.length === 0 ? (
-                                  <p className="text-red-500 text-xs py-2.5">No doctors available right now.</p>
-                                ) : (
-                                  <select
-                                    className="border rounded-xl px-3 py-2.5 text-sm w-full bg-white"
-                                    value={newDoctorId}
-                                    onChange={e => setNewDoctorId(e.target.value)}
-                                  >
-                                    {availableDoctors.map(d => (
-                                      <option key={d.id} value={d.id}>
-                                        {d.name} — {d.specialization}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
+                                  <p className="text-white font-extrabold">{doctor.name}</p>
+                                  <p className="text-slate-300 text-xs mt-1">{doctor.specialization}</p>
+                                </div>
+                                <div className="px-5 py-4 space-y-3">
+                                  <div className="flex items-center text-sm text-gray-500 gap-1">
+                                    <Building2 className="w-3.5 h-3.5" />{doctor.hospitalName}
+                                  </div>
+                                  {doctor.bio && <p className="text-xs text-gray-500 line-clamp-2">{doctor.bio}</p>}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1 text-amber-500 text-sm font-bold">
+                                      {'★'.repeat(Math.min(5, Math.round(doctor.rating)))}
+                                      <span className="text-gray-600 font-normal ml-1">{doctor.rating.toFixed(1)}</span>
+                                    </div>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${doctor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                      {doctor.available ? '● Available' : '○ Unavailable'}
+                                    </span>
+                                  </div>
+                                  {doctor.available && (
+                                    <button onClick={() => { setNewDoctorId(doctor.id); setTab('consult'); setShowNewConsult(true); }}
+                                      className="w-full bg-slate-800 text-white py-2 rounded-xl text-sm font-bold hover:bg-slate-900 transition">
+                                      Request Consultation
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-500 block mb-1">Describe the Issue</label>
-                              <textarea
-                                rows={2}
-                                className="border rounded-xl px-3 py-2.5 text-sm w-full"
-                                placeholder="Describe symptoms, affected area, urgency..."
-                                value={newNotes}
-                                onChange={e => setNewNotes(e.target.value)}
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={handleRequestConsultation}
-                                disabled={db.mutating || !newDoctorId}
-                                className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-900 disabled:opacity-50 transition"
-                              >
-                                {db.mutating
-                                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                                  : <Send className="w-4 h-4" />}
-                                Submit Request
-                              </button>
-                              <button
-                                onClick={() => setShowNewConsult(false)}
-                                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                            ))}
                           </div>
                         )}
                       </div>
-                    </SectionCard>
-
-                    {/* My consultation requests */}
-                    {db.consultations.length > 0 && (
-                      <SectionCard>
-                        <div className="px-6 py-5">
-                          <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-4">My Consultation Requests</h3>
-                          <div className="space-y-3">
-                            {db.consultations.map(c => {
-                              const doctor     = db.doctors.find(d => d.id === c.doctorId);
-                              const typeInfo   = CONSULT_TYPES.find(t => t.key === c.type)!;
-                              const statusMeta = STATUS_META[c.status];
-                              const TypeIcon   = typeInfo.icon;
-                              return (
-                                <div key={c.id} className="flex items-start justify-between border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50 transition">
-                                  <div className="flex items-start gap-3">
-                                    <div className={`p-2.5 rounded-xl bg-gradient-to-br ${typeInfo.color}`}>
-                                      <TypeIcon className="w-4 h-4 text-white" />
-                                    </div>
-                                    <div>
-                                      <p className="font-bold text-sm text-gray-800">{typeInfo.label}</p>
-                                      <p className="text-xs text-gray-500">
-                                        {new Date(c.targetDateTime).toLocaleString()} · {doctor?.name || 'Unassigned'}
-                                      </p>
-                                      {c.notes && <p className="text-xs text-gray-600 mt-0.5 max-w-xs truncate">{c.notes}</p>}
-                                      {c.prescription && (
-                                        <button
-                                          onClick={() => setTab('prescriptions')}
-                                          className="mt-1 text-xs font-bold text-slate-700 underline flex items-center gap-1"
-                                        >
-                                          <FileText className="w-3 h-3" /> View Prescription
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <Badge className={statusMeta.color}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
-                                    {statusMeta.label}
-                                  </Badge>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </SectionCard>
                     )}
-
-                    {db.consultations.length === 0 && db.doctors.length > 0 && (
-                      <div className="text-center py-16 text-gray-400">
-                        <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p className="text-sm font-medium">No consultations yet. Request your first one above.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ═══ GROWER — MY PRESCRIPTIONS ═══════════════════════════ */}
-                {tab === 'prescriptions' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="font-extrabold text-gray-800 text-base">My Digital Prescriptions</h2>
-                      <Badge className="text-gray-600 bg-gray-100 border-gray-200">{db.allPrescriptions.length} Total</Badge>
-                    </div>
-
-                    {db.allPrescriptions.length === 0 ? (
-                      <div className="text-center py-16 text-gray-400">
-                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p className="text-sm font-medium">No prescriptions issued yet. Request a consultation first.</p>
-                      </div>
-                    ) : (
-                      db.allPrescriptions.map(rx => (
-                        <PrescriptionCard
-                          key={rx.id}
-                          rx={rx}
-                          mutating={db.mutating}
-                          onExecute={() => handleExecuteRx(rx)}
-                          onFlagCorrection={() => db.flagCorrection(rx.id)}
-                          showWhatsApp={() => setWhatsAppRx(rx)}
-                        />
-                      ))
-                    )}
-                  </div>
-                )}
-
-                {/* ═══ GROWER — OUR DOCTORS ════════════════════════════════ */}
-                {tab === 'doctors' && (
-                  <div className="space-y-4">
-                    <h2 className="font-extrabold text-gray-800 text-base">Certified Agronomists</h2>
-
-                    {db.doctorsLoading && (
-                      <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span className="text-sm">Loading doctors…</span>
-                      </div>
-                    )}
-
-                    {!db.doctorsLoading && db.doctors.length === 0 && (
-                      <div className="text-center py-16 text-gray-400">
-                        <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p className="text-sm font-medium">No doctors registered yet.</p>
-                        <p className="text-xs mt-1">Doctors can register by switching to the Doctor portal.</p>
-                      </div>
-                    )}
-
-                    {!db.doctorsLoading && db.doctors.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {db.doctors.map(doctor => (
-                          <div key={doctor.id} className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
-                            <div className="bg-gradient-to-br from-slate-700 to-slate-900 px-5 py-6 text-center">
-                              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-                                <Stethoscope className="w-8 h-8 text-white" />
-                              </div>
-                              <p className="text-white font-extrabold">{doctor.name}</p>
-                              <p className="text-slate-300 text-xs mt-1">{doctor.specialization}</p>
-                            </div>
-                            <div className="px-5 py-4 space-y-3">
-                              <div className="flex items-center text-sm text-gray-500 gap-1">
-                                <Building2 className="w-3.5 h-3.5" />{doctor.hospitalName}
-                              </div>
-                              {doctor.bio && (
-                                <p className="text-xs text-gray-500 line-clamp-2">{doctor.bio}</p>
-                              )}
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1 text-amber-500 text-sm font-bold">
-                                  {'★'.repeat(Math.min(5, Math.round(doctor.rating)))}
-                                  <span className="text-gray-600 font-normal ml-1">{doctor.rating.toFixed(1)}</span>
-                                </div>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${doctor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                  {doctor.available ? '● Available' : '○ Unavailable'}
-                                </span>
-                              </div>
-                              {doctor.available && (
-                                <button
-                                  onClick={() => { setNewDoctorId(doctor.id); setTab('consult'); setShowNewConsult(true); }}
-                                  className="w-full bg-slate-800 text-white py-2 rounded-xl text-sm font-bold hover:bg-slate-900 transition"
-                                >
-                                  Request Consultation
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  </>
                 )}
               </>
             )}
@@ -1448,12 +1296,17 @@ export default function OrchardDoctor({
 
       {/* ═══ STATS FOOTER ════════════════════════════════════════════════ */}
       <div className="mx-6 mb-6 mt-2 bg-slate-800 rounded-2xl px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-        {[
-          { label: 'Total Requests', value: db.consultations.length,                                              color: 'text-sky-400'    },
-          { label: 'In Progress',    value: db.consultations.filter(c => c.status === 'IN_PROGRESS').length,      color: 'text-blue-400'   },
-          { label: 'Prescriptions',  value: db.allPrescriptions.length,                                           color: 'text-purple-400' },
-          { label: 'Doctors Online', value: db.doctors.filter(d => d.available).length,                           color: 'text-green-400'  },
-        ].map(stat => (
+        {(isDoctor ? [
+          { label: 'My Patients',   value: db.doctorConsultations.length,                                                 color: 'text-sky-400'    },
+          { label: 'In Progress',   value: db.doctorConsultations.filter(c => c.status === 'IN_PROGRESS').length,         color: 'text-blue-400'   },
+          { label: 'Completed',     value: db.doctorConsultations.filter(c => c.status === 'COMPLETED').length,           color: 'text-green-400'  },
+          { label: 'Doctors Online',value: db.doctors.filter(d => d.available).length,                                    color: 'text-purple-400' },
+        ] : [
+          { label: 'Total Requests', value: db.consultations.length,                                             color: 'text-sky-400'    },
+          { label: 'In Progress',    value: db.consultations.filter(c => c.status === 'IN_PROGRESS').length,     color: 'text-blue-400'   },
+          { label: 'Prescriptions',  value: db.allPrescriptions.length,                                          color: 'text-purple-400' },
+          { label: 'Doctors Online', value: db.doctors.filter(d => d.available).length,                          color: 'text-green-400'  },
+        ]).map(stat => (
           <div key={stat.label}>
             <p className={`text-xl font-extrabold ${stat.color}`}>{stat.value}</p>
             <p className="text-slate-400 text-xs mt-0.5">{stat.label}</p>

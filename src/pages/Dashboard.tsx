@@ -485,12 +485,18 @@ const getSprayBadge = (day: any) => {
     }
 
     if (!initialCenter) {
-      initialCenter = fieldsWithCoords[0]
-        ? { lat: fieldsWithCoords[0].latitude!, lng: fieldsWithCoords[0].longitude! }
-        : {
-            lat: fieldsWithBoundaries[0].boundaryPath![0].lat,
-            lng: fieldsWithBoundaries[0].boundaryPath![0].lng,
-          };
+      if (fieldsWithCoords[0]) {
+        initialCenter = { lat: fieldsWithCoords[0].latitude!, lng: fieldsWithCoords[0].longitude! };
+      } else if (fieldsWithBoundaries[0]?.boundaryPath?.[0]) {
+        initialCenter = {
+          lat: fieldsWithBoundaries[0].boundaryPath![0].lat,
+          lng: fieldsWithBoundaries[0].boundaryPath![0].lng,
+        };
+      } else {
+        // No usable coordinates at all — use a safe default (Kashmir region)
+        initialCenter = { lat: 34.0837, lng: 74.7973 };
+        initialZoom = 10;
+      }
     }
 
     const map = new googleMaps.maps.Map(mapRef.current, {
