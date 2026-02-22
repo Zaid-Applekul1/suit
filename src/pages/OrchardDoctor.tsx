@@ -1117,77 +1117,91 @@ export default function OrchardDoctor({
         />
       )}
 
-      {/* ═══ HEADER ══════════════════════════════════════════════════════ */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-6 py-5 shadow-xl">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 rounded-2xl">
-              <Stethoscope className="w-7 h-7 text-white" />
-            </div>
-            <div>
-           
-  <div className="flex items-center gap-2 text-center">
-    <h1 className="text-xl font-extrabold tracking-tight">
-      Orchard Hospital
-    </h1>
-    <span className="text-xs font-bold bg-white/15 px-2 py-0.5 rounded-full text-slate-200">
-      Kashmir
-    </span>
- 
-                {/* RBAC badge */}
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  isDoctor ? 'bg-blue-500/30 text-blue-200' : 'bg-green-500/30 text-green-200'
-                }`}>
-                  {isDoctor ? '🩺 Doctor Portal' : '🌿 Grower Portal'}
-                </span>
-              </div>
-              <p className="text-slate-400 text-xs mt-0.5">
-                {isDoctor
-                  ? `Dr. ${resolvedGrowerName} — Telehealth Portal`
-                  : `Telehealth & Agronomist Dispatch · Grower: ${resolvedGrowerName}`}
-              </p>
+      {/* ═══ ENHANCED HERO HEADER ════════════════════════════════════════ */}
+      <div className="relative overflow-hidden shadow-2xl" style={{
+        background: isDoctor
+          ? 'linear-gradient(135deg,#1e3a5f,#1e40af,#1d4ed8,#2563eb,#3b82f6,#60a5fa,#3b82f6,#1d4ed8,#1e40af)'
+          : 'linear-gradient(135deg,#064e3b,#065f46,#047857,#059669,#10b981,#34d399,#6ee7b7,#10b981,#047857)',
+        backgroundSize: '300% 300%',
+        animation: 'odGradShift 8s ease infinite',
+      }}>
+        <style>{`
+          @keyframes odGradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+          @keyframes odFadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes odScaleIn { from{opacity:0;transform:scale(0.85)} to{opacity:1;transform:scale(1)} }
+          @keyframes odPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.5);opacity:0} }
+          .od-fade-up { animation: odFadeUp 0.6s ease both; }
+          .od-scale-in { animation: odScaleIn 0.5s ease both; }
+          .od-d1 { animation-delay: 0.08s; }
+          .od-d2 { animation-delay: 0.16s; }
+          .od-d3 { animation-delay: 0.24s; }
+          .od-d4 { animation-delay: 0.32s; }
+          .od-pulse::after { content:''; position:absolute; inset:0; border-radius:9999px;
+            background:currentColor; animation: odPulse 1.8s ease-out infinite; }
+        `}</style>
 
-              {/* Field selector — Growers only */}
-              {!isDoctor && !propFieldId && (
-                <div className="mt-2 flex items-center gap-2">
-                  {fieldsLoading ? (
-                    <span className="text-slate-400 text-xs flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Loading orchards…
-                    </span>
-                  ) : userFields.length === 0 ? (
-                    <span className="text-red-400 text-xs">No orchards found. Please create a field first.</span>
-                  ) : (
-                    <select
-                      value={selectedFieldId}
-                      onChange={e => {
-                        const chosen = userFields.find(f => f.id === e.target.value);
-                        setSelectedFieldId(e.target.value);
-                        setSelectedFieldName(chosen?.name ?? '');
-                      }}
-                      className="bg-white/10 border border-white/20 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/40"
-                    >
-                      {userFields.map(f => (
-                        <option key={f.id} value={f.id} className="text-slate-900 bg-white">{f.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-            </div>
+        {/* Subtle mesh overlay */}
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage:'radial-gradient(circle at 20% 50%,white 1px,transparent 1px),radial-gradient(circle at 80% 20%,white 1px,transparent 1px)', backgroundSize:'40px 40px' }} />
+
+        <div className="relative px-6 py-9 flex flex-col items-center text-center gap-3">
+          {/* Live badge */}
+          <div className="od-scale-in od-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/25 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
+            <span className="relative inline-block w-2 h-2 rounded-full bg-white od-pulse" />
+            {isDoctor ? 'Doctor Portal · Live' : 'Grower Portal · Live'}
           </div>
 
-          {/* Refresh — only for growers (doctors have their own refresh in the queue) */}
-          {!isDoctor && (
-            <button onClick={db.reload} disabled={db.loading} title="Refresh data"
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition disabled:opacity-40">
-              <RefreshCw className={`w-4 h-4 ${db.loading ? 'animate-spin' : ''}`} />
-            </button>
-          )}
+          {/* Title */}
+          <h1 className="od-fade-up od-d2 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+            🏥 Orchard Hospital
+          </h1>
+
+          {/* Subtitle */}
+          <p className="od-fade-up od-d3 text-sm sm:text-base text-white/80 font-medium max-w-lg">
+            {isDoctor
+              ? `Dr. ${resolvedGrowerName} — Telehealth & Diagnosis Portal · Kashmir`
+              : `Telehealth & Agronomist Dispatch · Grower: ${resolvedGrowerName}`}
+          </p>
+
+          {/* Field selector (Growers only) + Refresh */}
+          <div className="od-fade-up od-d4 flex items-center gap-3 flex-wrap justify-center">
+            {!isDoctor && !propFieldId && (
+              <>
+                {fieldsLoading ? (
+                  <span className="text-white/70 text-xs flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Loading orchards…
+                  </span>
+                ) : userFields.length === 0 ? (
+                  <span className="text-red-300 text-xs">No orchards found. Please create a field first.</span>
+                ) : (
+                  <select
+                    value={selectedFieldId}
+                    onChange={e => {
+                      const chosen = userFields.find(f => f.id === e.target.value);
+                      setSelectedFieldId(e.target.value);
+                      setSelectedFieldName(chosen?.name ?? '');
+                    }}
+                    className="bg-white/15 border border-white/30 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white/50 backdrop-blur-sm"
+                  >
+                    {userFields.map(f => (
+                      <option key={f.id} value={f.id} className="text-slate-900 bg-white">{f.name}</option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )}
+            {!isDoctor && (
+              <button onClick={db.reload} disabled={db.loading} title="Refresh data"
+                className="p-2 bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl text-white transition disabled:opacity-40 backdrop-blur-sm">
+                <RefreshCw className={`w-4 h-4 ${db.loading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Pending Rx alert (growers only) */}
         {db.pendingRxCount > 0 && !isDoctor && (
-          <div className="mt-3 flex items-center gap-2 bg-red-500/90 rounded-xl px-4 py-2.5 border border-red-400">
+          <div className="mx-6 mb-4 flex items-center gap-2 bg-red-500/90 rounded-xl px-4 py-2.5 border border-red-400/60 backdrop-blur-sm">
             <Bell className="w-4 h-4 text-white shrink-0" />
             <p className="text-white text-sm font-bold flex-1">
               {db.pendingRxCount} prescription{db.pendingRxCount > 1 ? 's' : ''} awaiting execution

@@ -11,6 +11,7 @@ import SoilTestAdvisory from './pages/SoilTestAdvisory';
 import { useAuth } from './contexts/AuthContext';
 import FinancialLedger from './pages/FinancialLedger';
 import OrchardDoctor from './pages/OrchardDoctor';
+import TreeScouting from './pages/TreeScouting';
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { session, loading } = useAuth();
@@ -52,6 +53,7 @@ function App() {
           <Route path="profile" element={<Profile />} />
           <Route path="skuast-advisory" element={<SkuastAdvisory />} />
           <Route path="soil-test-advisory" element={<SoilTestAdvisory />} />
+          <Route path="tree-scouting" element={<TreeScouting />} />
         </Route>
       </Routes>
     </Router>

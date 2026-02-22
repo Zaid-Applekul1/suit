@@ -19,6 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
      { path: '/orchard-doctor', icon: Stethoscope, label: 'Orchard Doctor' },
     { path: '/skuast-advisory', icon: BookOpen, label: 'SKUAST Advisory' },
     { path: '/soil-test-advisory', icon: BookOpen, label: 'Soil Test Advisory' },
+    { path: '/tree-scouting', icon: Stethoscope, label: 'Tree Scouting' },
   ];
 
   const handleSignOut = async () => {

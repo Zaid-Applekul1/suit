@@ -427,23 +427,32 @@ export default function FinancialLedger() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── HEADER ── */}
-      <div className="bg-gradient-to-r from-green-800 to-green-600 text-white px-6 py-5 shadow-lg">
-    <div className="flex justify-center">
-    <div className="text-center">
-      <h1 className="text-2xl font-extrabold tracking-tight">
-        Apple Orchard · Financial Ledger
-      </h1>
-      <p className="text-green-200 text-sm mt-1">
-        Season 2025–2026 · Real-time profit tracking
-      </p>
-    </div>
-  </div>
-
-  {db.loading && (
-    <Loader2 className="w-5 h-5 animate-spin text-green-200 absolute right-6 top-1/2 -translate-y-1/2" />
-  )}
-</div>
+      {/* ── ENHANCED HERO HEADER ── */}
+      <div className="relative overflow-hidden" style={{
+        background:'linear-gradient(135deg,#064e3b,#065f46,#047857,#059669,#10b981,#34d399,#10b981,#047857)',
+        backgroundSize:'300% 300%',
+        animation:'fldGradientShift 8s ease infinite'
+      }}>
+        <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
+        <div className="relative px-6 py-9 flex flex-col items-center text-center gap-3">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
+            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+            Season 2025–2026 · Live
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl">
+            💰 Financial Ledger
+          </h1>
+          <p className="text-emerald-100/90 text-sm font-medium max-w-sm">
+            Apple Orchard · Real-time profit &amp; expense tracking
+          </p>
+        </div>
+        {db.loading && (
+          <div className="absolute right-5 top-5">
+            <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+          </div>
+        )}
+      </div>
 
       {/* ── ERROR BANNER ── */}
       {db.error && (
@@ -466,11 +475,12 @@ export default function FinancialLedger() {
 
       {/* ── TABS ── */}
       <div className="px-6">
-        <div className="flex gap-1 bg-white border rounded-xl p-1 shadow-sm">
+        <div className="flex gap-1.5 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm">
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                tab === t.key ? 'bg-green-700 text-white shadow' : 'text-gray-600 hover:bg-gray-50'}`}>
+              style={tab === t.key ? {background:'linear-gradient(135deg,#15803d,#16a34a)',boxShadow:'0 4px 14px rgba(22,163,74,0.35)'} : {}}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                tab === t.key ? 'text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-green-700'}`}>
               <t.icon className="w-4 h-4" />{t.label}
             </button>
           ))}
