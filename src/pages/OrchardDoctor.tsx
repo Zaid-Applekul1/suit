@@ -1117,8 +1117,8 @@ export default function OrchardDoctor({
         />
       )}
 
-      {/* ═══ ENHANCED HERO HEADER ════════════════════════════════════════ */}
-      <div className="relative overflow-hidden shadow-2xl" style={{
+      {/* ═══ SKUAST-STYLE HERO HEADER ════════════════════════════════════════ */}
+      <div className="relative overflow-hidden rounded-b-3xl shadow-2xl" style={{
         background: isDoctor
           ? 'linear-gradient(135deg,#1e3a5f,#1e40af,#1d4ed8,#2563eb,#3b82f6,#60a5fa,#3b82f6,#1d4ed8,#1e40af)'
           : 'linear-gradient(135deg,#064e3b,#065f46,#047857,#059669,#10b981,#34d399,#6ee7b7,#10b981,#047857)',
@@ -1127,33 +1127,44 @@ export default function OrchardDoctor({
       }}>
         <style>{`
           @keyframes odGradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-          @keyframes odFadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes odScaleIn { from{opacity:0;transform:scale(0.85)} to{opacity:1;transform:scale(1)} }
-          @keyframes odPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.5);opacity:0} }
-          .od-fade-up { animation: odFadeUp 0.6s ease both; }
-          .od-scale-in { animation: odScaleIn 0.5s ease both; }
-          .od-d1 { animation-delay: 0.08s; }
-          .od-d2 { animation-delay: 0.16s; }
-          .od-d3 { animation-delay: 0.24s; }
-          .od-d4 { animation-delay: 0.32s; }
-          .od-pulse::after { content:''; position:absolute; inset:0; border-radius:9999px;
-            background:currentColor; animation: odPulse 1.8s ease-out infinite; }
+          @keyframes odFadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes odFadeDown { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes odScaleIn { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
+          @keyframes odLeafSway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
+          @keyframes odPulseRing { 0%{transform:scale(1);opacity:0.8} 100%{transform:scale(1.6);opacity:0} }
+          @keyframes odShimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+          .od-fade-up  { animation: odFadeUp  0.6s cubic-bezier(.22,1,.36,1) both; }
+          .od-fade-dn  { animation: odFadeDown 0.55s cubic-bezier(.22,1,.36,1) both; }
+          .od-scale-in { animation: odScaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+          .od-leaf     { display:inline-block; animation:odLeafSway 3s ease-in-out infinite; transform-origin:bottom center; }
+          .od-d0{animation-delay:0s} .od-d1{animation-delay:.08s} .od-d2{animation-delay:.16s}
+          .od-d3{animation-delay:.24s} .od-d4{animation-delay:.32s}
+          .od-pulse::before { content:''; position:absolute; inset:0; border-radius:50%;
+            background:rgba(167,243,208,0.5); animation:odPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite; }
+          .od-shimmer-bar { background:linear-gradient(90deg,rgba(167,243,208,0.2) 25%,rgba(167,243,208,0.55) 50%,rgba(167,243,208,0.2) 75%); background-size:400px 100%; animation:odShimmer 2s ease-in-out infinite; }
+          .od-blue-shimmer { background:linear-gradient(90deg,rgba(147,197,253,0.2) 25%,rgba(147,197,253,0.55) 50%,rgba(147,197,253,0.2) 75%); background-size:400px 100%; animation:odShimmer 2s ease-in-out infinite; }
         `}</style>
 
-        {/* Subtle mesh overlay */}
-        <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage:'radial-gradient(circle at 20% 50%,white 1px,transparent 1px),radial-gradient(circle at 80% 20%,white 1px,transparent 1px)', backgroundSize:'40px 40px' }} />
+        {/* Shimmer top accent bar */}
+        <div className={`h-1 w-full ${isDoctor ? 'od-blue-shimmer' : 'od-shimmer-bar'}`}/>
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none"/>
+        <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none"/>
+        <div className="absolute top-6 right-24 w-20 h-20 rounded-full bg-white/8 pointer-events-none"/>
+        {/* Grid lines */}
+        <div className="absolute inset-0 opacity-5 pointer-events-none"
+          style={{ backgroundImage:'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
 
-        <div className="relative px-6 py-9 flex flex-col items-center text-center gap-3">
+        <div className="relative px-6 py-9 sm:py-11 flex flex-col items-center text-center gap-4">
           {/* Live badge */}
-          <div className="od-scale-in od-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/25 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
+          <div className="od-scale-in od-d0 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
             <span className="relative inline-block w-2 h-2 rounded-full bg-white od-pulse" />
             {isDoctor ? 'Doctor Portal · Live' : 'Grower Portal · Live'}
           </div>
 
           {/* Title */}
           <h1 className="od-fade-up od-d2 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-            🏥 Orchard Hospital
+            <span className="od-leaf">🏥</span> Orchard Hospital
           </h1>
 
           {/* Subtitle */}
@@ -1164,7 +1175,7 @@ export default function OrchardDoctor({
           </p>
 
           {/* Field selector (Growers only) + Refresh */}
-          <div className="od-fade-up od-d4 flex items-center gap-3 flex-wrap justify-center">
+          <div className="od-fade-up od-d4 flex flex-wrap items-center gap-3 justify-center">
             {!isDoctor && !propFieldId && (
               <>
                 {fieldsLoading ? (
@@ -1214,8 +1225,8 @@ export default function OrchardDoctor({
       </div>
 
       {/* ═══ TABS ════════════════════════════════════════════════════════ */}
-      <div className="px-6 pt-5">
-        <div className="flex gap-1 bg-white border rounded-xl p-1 shadow-sm">
+      <div className="px-4 sm:px-6 pt-5">
+        <div className="od-scale-in od-d2 flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm overflow-x-auto">
           {/* Doctor tabs */}
           {isDoctor && (
             <>
@@ -1224,10 +1235,11 @@ export default function OrchardDoctor({
                 { key: 'prescriptions', label: 'Issued Prescriptions', icon: FileText      },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition ${
-                    tab === t.key ? 'bg-slate-800 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
+                  style={tab === t.key ? {background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',boxShadow:'0 4px 14px rgba(29,78,216,0.35)'} : {}}
+                  className={`flex-1 min-w-fit flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 ${
+                    tab === t.key ? 'text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-blue-700'
                   }`}>
-                  <t.icon className="w-4 h-4" />{t.label}
+                  <t.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /><span>{t.label}</span>
                 </button>
               ))}
             </>
@@ -1242,11 +1254,12 @@ export default function OrchardDoctor({
                 { key: 'doctors',       label: 'Our Doctors',      icon: User          },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition relative ${
-                    tab === t.key ? 'bg-slate-800 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
+                  style={tab === t.key ? {background:'linear-gradient(135deg,#15803d,#16a34a)',boxShadow:'0 4px 14px rgba(22,163,74,0.35)'} : {}}
+                  className={`flex-1 min-w-fit flex items-center justify-center gap-1.5 py-2.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 relative ${
+                    tab === t.key ? 'text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-green-700'
                   }`}>
-                  <t.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t.label}</span>
+                  <t.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                  <span>{t.label}</span>
                   {t.key === 'prescriptions' && db.pendingRxCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">
                       {db.pendingRxCount}
@@ -1259,7 +1272,7 @@ export default function OrchardDoctor({
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-5">
+      <div className="px-4 sm:px-6 py-6 space-y-5">
 
         {/* Error banner */}
         {errorMsg && <ErrorBanner message={errorMsg} onDismiss={dismissError} />}

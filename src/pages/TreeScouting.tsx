@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Bug, AlertTriangle, CheckCircle2, Plus, X, Camera, MapPin,
   Clock, ChevronDown, ChevronUp, Upload, Wifi, WifiOff, Filter,
@@ -27,6 +28,109 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+
+/* ═══════════════════════════════════════════════════════════════
+   SKUAST-STYLE ANIMATION & STYLE DEFINITIONS
+═══════════════════════════════════════════════════════════════ */
+const TS_STYLES = `
+@keyframes tsFadeUp {
+  from { opacity:0; transform:translateY(24px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes tsFadeDown {
+  from { opacity:0; transform:translateY(-18px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes tsScaleIn {
+  from { opacity:0; transform:scale(0.90); }
+  to   { opacity:1; transform:scale(1); }
+}
+@keyframes tsSlideRight {
+  from { opacity:0; transform:translateX(-20px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes tsGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.25); }
+  50%       { box-shadow: 0 0 0 10px rgba(16,185,129,0); }
+}
+@keyframes tsPulseRing {
+  0%   { transform:scale(1);   opacity:0.8; }
+  100% { transform:scale(1.6); opacity:0; }
+}
+@keyframes tsShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes tsLeafSway {
+  0%, 100% { transform: rotate(-4deg); }
+  50%       { transform: rotate(4deg); }
+}
+@keyframes tsHeaderGradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes tsFloat {
+  0%,100% { transform:translateY(0); }
+  50%     { transform:translateY(-6px); }
+}
+
+.ts-fade-up   { animation: tsFadeUp   0.6s cubic-bezier(.22,1,.36,1) both; }
+.ts-fade-down { animation: tsFadeDown 0.55s cubic-bezier(.22,1,.36,1) both; }
+.ts-scale-in  { animation: tsScaleIn  0.5s  cubic-bezier(.22,1,.36,1) both; }
+.ts-slide-r   { animation: tsSlideRight 0.5s cubic-bezier(.22,1,.36,1) both; }
+.ts-glow      { animation: tsGlow 2.8s ease-in-out infinite; }
+.ts-float     { animation: tsFloat 4s ease-in-out infinite; }
+.ts-leaf      { display:inline-block; animation: tsLeafSway 3s ease-in-out infinite; transform-origin: bottom center; }
+
+.ts-d0 { animation-delay:0s;   }
+.ts-d1 { animation-delay:.08s; }
+.ts-d2 { animation-delay:.16s; }
+.ts-d3 { animation-delay:.24s; }
+.ts-d4 { animation-delay:.32s; }
+.ts-d5 { animation-delay:.40s; }
+.ts-d6 { animation-delay:.48s; }
+.ts-d7 { animation-delay:.56s; }
+
+/* Animated gradient header */
+.ts-header-banner {
+  background: linear-gradient(135deg, #052e16, #064e3b, #065f46, #047857, #059669, #10b981, #34d399, #10b981, #047857, #052e16);
+  background-size: 300% 300%;
+  animation: tsHeaderGradient 8s ease infinite;
+}
+
+/* Card hover lift */
+.ts-card {
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.ts-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px rgba(16,185,129,0.14);
+  border-color: #6ee7b7;
+}
+
+/* Pulse indicator */
+.ts-pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(16,185,129,0.5);
+  animation: tsPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite;
+}
+
+/* Tab hover */
+.ts-tab {
+  transition: background .18s ease, color .18s ease;
+}
+
+/* Shimmer */
+.ts-shimmer {
+  background: linear-gradient(90deg, #f0fdf4 25%, #dcfce7 50%, #f0fdf4 75%);
+  background-size: 400px 100%;
+  animation: tsShimmer 1.4s ease-in-out infinite;
+}
+`;
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES
@@ -1800,9 +1904,14 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
   const userName   = (user as any)?.name || user?.email || 'Scout';
   const gpsHook    = useGpsLock();
 
+  // URL params: ?fieldId=xxx&treeTagId=yyy (set by Fields "View Full Scouting" button)
+  const [searchParams] = useSearchParams();
+  const urlFieldId   = searchParams.get('fieldId') ?? '';
+  const urlTreeTagId = searchParams.get('treeTagId') ?? '';
+
   const [tab, setTab]                       = useState<'scout' | 'dashboard' | 'alerts' | 'history'>('scout');
   const [fields, setFields]                 = useState<Field[]>([]);
-  const [selectedFieldId, setSelectedFieldId] = useState(propFieldId ?? '');
+  const [selectedFieldId, setSelectedFieldId] = useState(urlFieldId || propFieldId || '');
   const [treeTags, setTreeTags]             = useState<TreeTag[]>([]);
   const [snapshots, setSnapshots]           = useState<TreeHealthSnapshot[]>([]);
   const [alerts, setAlerts]                 = useState<ScoutingAlert[]>([]);
@@ -1816,6 +1925,8 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [search, setSearch]                 = useState('');
   const [filterHealth, setFilterHealth]     = useState<HealthStatus | 'ALL'>('ALL');
+  // Track whether we've already done the initial URL-param tree auto-selection
+  const urlTreeAutoSelected = useRef(false);
 
   /* Online/offline */
   useEffect(() => {
@@ -1839,9 +1950,10 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
     supabase.from('fields').select('id, name').eq('user_id', userId).then(({ data }) => {
       const rows = (data ?? []) as Field[];
       setFields(rows);
-      if (!propFieldId && rows.length > 0 && !selectedFieldId) setSelectedFieldId(rows[0].id);
+      // Priority: URL param fieldId > prop fieldId > first field
+      if (!urlFieldId && !propFieldId && rows.length > 0 && !selectedFieldId) setSelectedFieldId(rows[0].id);
     });
-  }, [userId, propFieldId]);
+  }, [userId, propFieldId, urlFieldId]);
 
   const currentField = useMemo(() => fields.find(f => f.id === selectedFieldId), [fields, selectedFieldId]);
 
@@ -1862,6 +1974,18 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
         setLoading(false);
       });
   }, [selectedFieldId, userId]);
+
+  /* Auto-select tree from URL param treeTagId — runs once after treeTags load */
+  useEffect(() => {
+    if (!urlTreeTagId || urlTreeAutoSelected.current || treeTags.length === 0) return;
+    const match = treeTags.find(t => t.id === urlTreeTagId);
+    if (match) {
+      setSelectedTreeId(match.id);
+      setScoutingTree(match);
+      setTab('scout');
+      urlTreeAutoSelected.current = true;
+    }
+  }, [treeTags, urlTreeTagId]);
 
   /* Verify card photos exist in Supabase Storage for trees that have a card_photo_url.
      Runs after trees are loaded — refreshes signed URLs and clears stale DB entries. */
@@ -2031,6 +2155,8 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
 
   /* ─── RENDER ──────────────────────────────────────────────── */
   return (
+    <>
+    <style>{TS_STYLES}</style>
     <div className="min-h-screen bg-gray-50">
 
       {scoutingTree && currentField && (
@@ -2047,87 +2173,106 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
         />
       )}
 
-      {/* ── HEADER ───────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 text-white px-6 py-6 shadow-2xl">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 backdrop-blur rounded-2xl border border-white/10">
-              <Bug className="w-7 h-7 text-emerald-300" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-extrabold tracking-tight">Tree Scouting</h1>
-                <span className="text-xs font-bold bg-emerald-700/60 px-2.5 py-0.5 rounded-full text-emerald-200 border border-emerald-600">Precision IPM</span>
-                <span className="text-xs font-bold bg-indigo-700/60 px-2.5 py-0.5 rounded-full text-indigo-200 border border-indigo-600 flex items-center gap-1">
-                  <Brain className="w-3 h-3" /> AI Powered
-                </span>
+      {/* ── ANIMATED HERO HEADER ─────────────────────────────── */}
+      <div className="ts-fade-down ts-d0 relative overflow-hidden ts-header-banner shadow-2xl">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute top-6 right-24 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
+
+        <div className="relative px-6 py-8 text-white">
+          {/* Top row: badge + actions */}
+          <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
+            <div className="flex items-center gap-4">
+              {/* Animated logo icon */}
+              <div className="ts-glow ts-float relative p-3 bg-white/15 backdrop-blur-sm rounded-2xl border border-white/25 shadow-lg shrink-0">
+                <Bug className="w-7 h-7 text-emerald-300" />
               </div>
-              <p className="text-emerald-400 text-xs mt-1">Offline-First · GPS-Aware · Tree-Level Pest & Disease Monitoring</p>
-              {!propFieldId && fields.length > 0 && (
-                <select
-                  value={selectedFieldId}
-                  onChange={e => setSelectedFieldId(e.target.value)}
-                  className="mt-2 bg-white/10 border border-white/20 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30"
+              <div>
+                {/* Live badge */}
+                <div className="ts-scale-in ts-d1 inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase mb-2">
+                  <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 ts-pulse" />
+                  Precision IPM · Live
+                </div>
+                {/* Title */}
+                <div className="ts-fade-up ts-d2 flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+                    <span className="ts-leaf">🌿</span> Tree Scouting
+                  </h1>
+                  <span className="text-xs font-bold bg-indigo-600/70 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-indigo-100 border border-indigo-400/50 flex items-center gap-1">
+                    <Brain className="w-3 h-3" /> AI Powered
+                  </span>
+                </div>
+                <p className="ts-fade-up ts-d3 text-emerald-200/90 text-xs mt-1 font-medium">
+                  Offline-First · GPS-Aware · Tree-Level Pest &amp; Disease Monitoring
+                </p>
+                {!propFieldId && fields.length > 0 && (
+                  <select
+                    value={selectedFieldId}
+                    onChange={e => setSelectedFieldId(e.target.value)}
+                    className="ts-scale-in ts-d4 mt-2.5 bg-white/15 backdrop-blur-sm border border-white/25 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30"
+                  >
+                    {fields.map(f => <option key={f.id} value={f.id} className="text-gray-900 bg-white">{f.name}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Status + sync buttons */}
+            <div className="ts-fade-up ts-d3 flex items-center gap-2 flex-wrap">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold backdrop-blur-sm border ${isOnline ? 'bg-emerald-600/80 border-emerald-400/40' : 'bg-orange-500/80 border-orange-400/40'}`}>
+                {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+                {isOnline ? 'Online' : 'Offline'}
+              </div>
+              {pendingObs.length > 0 && (
+                <button
+                  onClick={handleSync}
+                  disabled={syncing || !isOnline}
+                  className="flex items-center gap-2 bg-orange-500/90 hover:bg-orange-500 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-bold text-xs transition border border-orange-400/40 backdrop-blur-sm"
                 >
-                  {fields.map(f => <option key={f.id} value={f.id} className="text-gray-900 bg-white">{f.name}</option>)}
-                </select>
+                  {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  Sync {pendingObs.length}
+                </button>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${isOnline ? 'bg-emerald-600' : 'bg-orange-500'}`}>
-              {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              {isOnline ? 'Online' : 'Offline'}
+          {syncMsg && (
+            <div className={`ts-fade-up flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold backdrop-blur-sm mb-3 ${syncMsg.type === 'ok' ? 'bg-emerald-600/70 border border-emerald-400/40' : 'bg-red-500/70 border border-red-400/40'}`}>
+              {syncMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+              {syncMsg.text}
+              <button onClick={() => setSyncMsg(null)} className="ml-auto"><X className="w-4 h-4" /></button>
             </div>
-            {pendingObs.length > 0 && (
-              <button
-                onClick={handleSync}
-                disabled={syncing || !isOnline}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-bold text-xs transition"
-              >
-                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                Sync {pendingObs.length}
-              </button>
-            )}
-          </div>
+          )}
+
+          {blockAlerts.length > 0 && (
+            <div className="ts-slide-r flex items-center gap-3 bg-red-600/80 backdrop-blur-sm border border-red-400/40 rounded-xl px-4 py-2.5">
+              <AlertTriangle className="w-4 h-4 text-white shrink-0" />
+              <p className="text-white text-sm font-bold flex-1">{blockAlerts.length} Block Alert{blockAlerts.length > 1 ? 's' : ''} — Block treatment required</p>
+              <button onClick={() => setTab('alerts')} className="text-white text-xs underline flex items-center gap-1">View <ChevronRight className="w-3 h-3" /></button>
+            </div>
+          )}
         </div>
-
-        {syncMsg && (
-          <div className={`mt-3 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${syncMsg.type === 'ok' ? 'bg-emerald-600/80' : 'bg-red-500/80'}`}>
-            {syncMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-            {syncMsg.text}
-            <button onClick={() => setSyncMsg(null)} className="ml-auto"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-
-        {blockAlerts.length > 0 && (
-          <div className="mt-3 flex items-center gap-3 bg-red-600/90 border border-red-400 rounded-xl px-4 py-2.5">
-            <AlertTriangle className="w-4 h-4 text-white shrink-0" />
-            <p className="text-white text-sm font-bold flex-1">{blockAlerts.length} Block Alert{blockAlerts.length > 1 ? 's' : ''} — Block treatment required</p>
-            <button onClick={() => setTab('alerts')} className="text-white text-xs underline flex items-center gap-1">View <ChevronRight className="w-3 h-3" /></button>
-          </div>
-        )}
       </div>
 
-      {/* ── STATS RIBBON ─────────────────────────────────────── */}
-      <div className="mx-6 mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 grid grid-cols-5 gap-3 text-center">
+      {/* ── ANIMATED STATS RIBBON ────────────────────────────── */}
+      <div className="ts-fade-up ts-d2 mx-6 mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 grid grid-cols-5 gap-3 text-center">
         {[
           { label: 'Total Trees', value: treeTags.length,          color: 'text-gray-800'    },
           { label: 'Healthy',     value: statsCount.HEALTHY,        color: 'text-emerald-600' },
           { label: 'Stressed',    value: statsCount.STRESSED,       color: 'text-yellow-600'  },
           { label: 'Infected',    value: statsCount.INFECTED,       color: 'text-red-600'     },
           { label: 'Critical',    value: statsCount.CRITICAL,       color: 'text-gray-900'    },
-        ].map(s => (
-          <div key={s.label}>
+        ].map((s, i) => (
+          <div key={s.label} className={`ts-scale-in ts-d${i + 2}`}>
             <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
             <p className="text-gray-400 text-xs mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      {/* ── TABS ─────────────────────────────────────────────── */}
-      <div className="px-6 pt-4">
+      {/* ── ANIMATED TABS ────────────────────────────────────── */}
+      <div className="px-6 pt-4 ts-fade-up ts-d3">
         <div className="flex gap-1 bg-white border border-gray-200 rounded-2xl p-1.5 shadow-sm">
           {([
             { key: 'scout',     label: 'Scout',      icon: Bug          },
@@ -2138,7 +2283,7 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition relative ${
+              className={`ts-tab flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold relative ${
                 tab === t.key
                   ? 'bg-gradient-to-r from-emerald-800 to-teal-700 text-white shadow'
                   : 'text-gray-500 hover:bg-gray-50'
@@ -2514,19 +2659,20 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
       </div>
 
       {/* ── FOOTER STATS BAR ─────────────────────────────────── */}
-      <div className="mx-6 mb-8 bg-gradient-to-r from-emerald-950 to-teal-900 rounded-2xl px-5 py-4 grid grid-cols-4 gap-3 text-center">
+      <div className="ts-fade-up ts-d5 mx-6 mb-8 bg-gradient-to-r from-emerald-950 to-teal-900 rounded-2xl px-5 py-4 grid grid-cols-4 gap-3 text-center ts-card">
         {[
           { label: 'Pending Sync',   value: pendingObs.length,   color: 'text-orange-400' },
           { label: 'Synced Records', value: syncedObs.length,    color: 'text-emerald-400' },
           { label: 'Open Alerts',    value: openAlerts.length,   color: 'text-red-400'    },
           { label: 'Trees Scouted',  value: new Set(allObs.map(o => o.treeTagId)).size, color: 'text-sky-400' },
-        ].map(s => (
-          <div key={s.label}>
+        ].map((s, i) => (
+          <div key={s.label} className={`ts-scale-in ts-d${i + 2}`}>
             <p className={`text-xl font-extrabold ${s.color}`}>{s.value}</p>
             <p className="text-emerald-500 text-xs mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
     </div>
+    </>
   );
 }

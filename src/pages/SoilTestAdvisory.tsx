@@ -30,6 +30,16 @@ const STYLES = `
 @keyframes borderGlow{ 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.0)} 50%{box-shadow:0 0 0 4px rgba(16,185,129,.18)} }
 @keyframes waterRipple{ 0%{transform:scale(1);opacity:.7} 100%{transform:scale(2.2);opacity:0} }
 @keyframes countUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes leafSway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
+@keyframes pulseRing{ 0%{transform:scale(1);opacity:.8} 100%{transform:scale(1.6);opacity:0} }
+@keyframes skShimmer{ 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+
+/* SKUAST-style leaf icon */
+.sk-leaf { display:inline-block; animation:leafSway 3s ease-in-out infinite; transform-origin:bottom center; }
+/* SKUAST-style pulse ring */
+.sk-pulse::before { content:''; position:absolute; inset:0; border-radius:50%; background:rgba(167,243,208,0.5); animation:pulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite; }
+/* SKUAST-style top shimmer bar */
+.sk-shimmer-bar { background:linear-gradient(90deg,rgba(167,243,208,0.25) 25%,rgba(167,243,208,0.6) 50%,rgba(167,243,208,0.25) 75%); background-size:400px 100%; animation:skShimmer 2s ease-in-out infinite; }
 
 .a-fade-up  { animation: fadeUp   0.55s cubic-bezier(.22,1,.36,1) both }
 .a-fade-dn  { animation: fadeDown 0.45s cubic-bezier(.22,1,.36,1) both }
@@ -644,84 +654,92 @@ const SoilTestAdvisory: React.FC = () => {
       <div className="space-y-6 pb-12">
 
         {/* ══ HERO HEADER ══ */}
-        <div className={`a-fade-up d0 relative overflow-hidden rounded-3xl p-6 md:p-8 ${mode==='soil'?'hero-soil':'hero-water'}`}>
-          {/* Decorative blobs */}
-          <div className="absolute -top-10 -right-10 w-52 h-52 rounded-full bg-white/5"/>
-          <div className="absolute bottom-0 left-1/3 w-72 h-36 rounded-full bg-white/5"/>
+        <div className={`a-fade-up d0 relative overflow-hidden rounded-3xl shadow-2xl ${mode==='soil'?'hero-soil':'hero-water'}`}>
+          {/* Shimmer top accent bar */}
+          <div className="h-1 w-full sk-shimmer-bar"/>
+          {/* Decorative circles */}
+          <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none"/>
+          <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none"/>
+          <div className="absolute top-6 right-24 w-20 h-20 rounded-full bg-white/8 pointer-events-none"/>
 
           {/* Floating icon cluster */}
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 opacity-20">
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 opacity-15 pointer-events-none">
             {mode==='soil'
               ? <><FlaskConical className="w-20 h-20 float-icon text-white" style={{animationDelay:'.3s'}}/><Leaf className="w-10 h-10 float-icon text-white" style={{animationDelay:'.7s'}}/></>
               : <><Droplets className="w-20 h-20 float-icon text-white" style={{animationDelay:'.3s'}}/><Waves className="w-10 h-10 float-icon text-white" style={{animationDelay:'.7s'}}/></>
             }
           </div>
 
-          <div className="relative flex flex-wrap items-center justify-between gap-5">
-            {/* Left: title + mode info */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-white/60 text-xs font-semibold uppercase tracking-widest">
-                  {mode==='soil'?'Soil Analysis':'Water Analysis'}
-                </span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1">Soil Test Advisory</h1>
-              <p className="text-white/70 text-sm">Monitor nutrients · Detect deficiencies &amp; excesses</p>
-
-              {/* Quick stats */}
-              <div className="flex items-center gap-3 mt-4">
-                <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
-                  <FlaskConical className="w-3.5 h-3.5 text-white/80"/>
-                  <span className="text-white text-xs font-bold">{soilTests.length} Soil</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
-                  <Droplets className="w-3.5 h-3.5 text-white/80"/>
-                  <span className="text-white text-xs font-bold">{waterTests.length} Water</span>
-                </div>
-              </div>
+          <div className="relative p-6 md:p-8">
+            {/* Live badge */}
+            <div className="a-scale-in d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase mb-4">
+              <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 sk-pulse"/>
+              {mode==='soil' ? 'Soil Analysis · Live' : 'Water Analysis · Live'}
             </div>
 
-            {/* Right: toggle + add button */}
-            <div className="flex items-center gap-3">
-              {/* Tab toggle */}
-              <div className="flex items-center bg-white/15 backdrop-blur-sm rounded-2xl p-1.5 gap-1 border border-white/20">
-                {([
-                  {id:'soil'  as TestMode, Icon:FlaskConical, label:'Soil'},
-                  {id:'water' as TestMode, Icon:Droplets,     label:'Water'},
-                ]).map(({id,Icon,label})=>(
-                  <button
-                    key={id}
-                    onClick={()=>{
-                      setMode(id);
-                      if(id==='soil') setWaterMode('view');
-                      else setSoilMode('view');
-                    }}
-                    className={`toggle-pill flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold select-none ${
-                      mode===id ? 'bg-white text-gray-800 shadow-lg' : 'text-white/80 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4"/>{label}
-                  </button>
-                ))}
+            <div className="flex flex-wrap items-end justify-between gap-5">
+              {/* Left: title + stats */}
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-1 drop-shadow-xl">
+                  <span className="sk-leaf">🌱</span>{' '}
+                  {mode==='soil' ? 'Soil Test Advisory' : 'Water Quality Advisory'}
+                </h1>
+                <p className="text-white/80 text-sm font-medium">Monitor nutrients · Detect deficiencies &amp; excesses</p>
+
+                {/* Quick stats */}
+                <div className="flex flex-wrap items-center gap-3 mt-4">
+                  <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm border border-white/25 rounded-xl px-3 py-1.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-emerald-300"/>
+                    <span className="text-white text-xs font-bold">{soilTests.length} Soil</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm border border-white/25 rounded-xl px-3 py-1.5">
+                    <Droplets className="w-3.5 h-3.5 text-blue-300"/>
+                    <span className="text-white text-xs font-bold">{waterTests.length} Water</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Add button — DEDICATED per mode, no closure ambiguity */}
-              {mode==='soil' && (
-                <button
-                  onClick={()=>{ setSoilMode('create'); setSelSoil(null); setSoilForm(EMPTY_SOIL); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-700 rounded-xl text-sm font-bold shadow-lg hover:bg-emerald-50 transition-all duration-200 hover:scale-105 active:scale-95"
-                >
-                  <Plus className="w-4 h-4"/>Add Soil Test
-                </button>
-              )}
-              {mode==='water' && (
-                <button
-                  onClick={()=>{ setWaterMode('create'); setSelWater(null); setWaterForm(EMPTY_WATER); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-blue-700 rounded-xl text-sm font-bold shadow-lg hover:bg-blue-50 transition-all duration-200 hover:scale-105 active:scale-95"
-                >
-                  <Plus className="w-4 h-4"/>Add Water Test
-                </button>
-              )}
+              {/* Right: toggle + add button */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Tab toggle */}
+                <div className="flex items-center bg-white/15 backdrop-blur-sm rounded-2xl p-1.5 gap-1 border border-white/20">
+                  {([
+                    {id:'soil'  as TestMode, Icon:FlaskConical, label:'Soil'},
+                    {id:'water' as TestMode, Icon:Droplets,     label:'Water'},
+                  ]).map(({id,Icon,label})=>(
+                    <button
+                      key={id}
+                      onClick={()=>{
+                        setMode(id);
+                        if(id==='soil') setWaterMode('view');
+                        else setSoilMode('view');
+                      }}
+                      className={`toggle-pill flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold select-none ${
+                        mode===id ? 'bg-white text-gray-800 shadow-lg' : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4"/><span className="hidden xs:inline">{label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {mode==='soil' && (
+                  <button
+                    onClick={()=>{ setSoilMode('create'); setSelSoil(null); setSoilForm(EMPTY_SOIL); }}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-emerald-700 rounded-xl text-xs sm:text-sm font-bold shadow-lg hover:bg-emerald-50 transition-all duration-200 hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-4 h-4"/><span>Add Soil Test</span>
+                  </button>
+                )}
+                {mode==='water' && (
+                  <button
+                    onClick={()=>{ setWaterMode('create'); setSelWater(null); setWaterForm(EMPTY_WATER); }}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-blue-700 rounded-xl text-xs sm:text-sm font-bold shadow-lg hover:bg-blue-50 transition-all duration-200 hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-4 h-4"/><span>Add Water Test</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

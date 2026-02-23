@@ -403,6 +403,7 @@ const Fields = () => {
     else alert('Failed to delete field.');
   };
 
+  const navigate = useNavigate();
   const { session } = useAuth();
   const [searchTerm, setSearchTerm]           = useState('');
   const [fields, setFields]                   = useState<Field[]>([]);
@@ -421,6 +422,52 @@ const Fields = () => {
   const [pendingTagLocation, setPendingTagLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedTreeId, setSelectedTreeId]   = useState<string | null>(null);
   const [tagFormData, setTagFormData]         = useState({ name: '', variety: '', rowNumber: '' });
+
+  // All tree_tags from Supabase (keyed by field_id → list of tags)
+  const [fieldTreeTags, setFieldTreeTags] = useState<Record<string, Array<{
+    id: string; name: string | null; variety: string | null; rowNumber: number | null; latitude: number; longitude: number;
+  }>>>({});
+
+  // Scouting snapshots for all tree_tags
+  const [treeHealthSnapshots, setTreeHealthSnapshots] = useState<Record<string, {
+    healthStatus: string; lastScoutedAt: string | null; lastPestName: string | null;
+    lastSeverityScore: number; totalObservations: number; etlAction: string; riskScore: number;
+  }>>({});
+  const [scoutingModal, setScoutingModal] = useState<null | {
+    tag: TreeTag;
+    snapshot: { healthStatus: string; lastScoutedAt: string | null; lastPestName: string | null;
+      lastSeverityScore: number; totalObservations: number; etlAction: string; riskScore: number; } | null;
+    recentObs: Array<{ pestName: string; severityScore: number; notes: string; scoutedAt: string; affectedPart: string; }>;
+    loading: boolean;
+  }>(null);
+
+  const getScoutingHealthMeta = (status: string) => {
+    const s = (status ?? '').toUpperCase();
+    if (s === 'HEALTHY')  return { label: 'Healthy',  dot: '#22c55e', badge: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' };
+    if (s === 'STRESSED') return { label: 'Stressed', dot: '#f59e0b', badge: 'bg-amber-100 text-amber-700',    text: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200' };
+    if (s === 'INFECTED') return { label: 'Infected', dot: '#f97316', badge: 'bg-orange-100 text-orange-700', text: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' };
+    if (s === 'CRITICAL') return { label: 'Critical', dot: '#ef4444', badge: 'bg-red-100 text-red-700',       text: 'text-red-700',     bg: 'bg-red-50',     border: 'border-red-200' };
+    return { label: 'Unknown', dot: '#9ca3af', badge: 'bg-gray-100 text-gray-600', text: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' };
+  };
+
+  const handleOpenScoutingModal = async (tag: TreeTag) => {
+    const snapshot = treeHealthSnapshots[tag.id] ?? null;
+    setScoutingModal({ tag, snapshot, recentObs: [], loading: true });
+    const { data } = await supabase
+      .from('tree_scouting_observations')
+      .select('pest_name, severity_score, notes, scouted_at, affected_part')
+      .eq('tree_tag_id', tag.id)
+      .order('scouted_at', { ascending: false })
+      .limit(5);
+    setScoutingModal(prev => prev ? {
+      ...prev,
+      recentObs: (data ?? []).map((r: any) => ({
+        pestName: r.pest_name ?? 'Unknown', severityScore: r.severity_score ?? 0,
+        notes: r.notes ?? '', scoutedAt: r.scouted_at, affectedPart: r.affected_part ?? '',
+      })),
+      loading: false,
+    } : null);
+  };
 
   const mapContainerRef   = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef    = useRef<any>(null);
@@ -492,6 +539,38 @@ const Fields = () => {
     load();
   }, [session?.user]);
 
+  // Fetch tree_tags + scouting health snapshots for all tagged trees of this user
+  useEffect(() => {
+    if (!session?.user) return;
+    const fetchData = async () => {
+      const [tagsRes, snapRes] = await Promise.all([
+        supabase.from('tree_tags').select('id, field_id, name, variety, row_number, latitude, longitude').eq('user_id', session.user.id),
+        supabase.from('tree_health_snapshots').select('tree_tag_id, health_status, last_scouted_at, last_pest_eppo, last_severity_score, total_observations, etl_action, risk_score').eq('user_id', session.user.id),
+      ]);
+
+      // Group tree_tags by field_id
+      const tagsMap: Record<string, any[]> = {};
+      (tagsRes.data ?? []).forEach((r: any) => {
+        const fid = r.field_id;
+        if (!tagsMap[fid]) tagsMap[fid] = [];
+        tagsMap[fid].push({ id: r.id, name: r.name, variety: r.variety, rowNumber: r.row_number, latitude: r.latitude, longitude: r.longitude });
+      });
+      setFieldTreeTags(tagsMap);
+
+      // Index snapshots by tree_tag_id
+      const snapMap: Record<string, any> = {};
+      (snapRes.data ?? []).forEach((r: any) => {
+        snapMap[r.tree_tag_id] = {
+          healthStatus: r.health_status ?? 'HEALTHY', lastScoutedAt: r.last_scouted_at ?? null,
+          lastPestName: r.last_pest_eppo ?? null, lastSeverityScore: r.last_severity_score ?? 0,
+          totalObservations: r.total_observations ?? 0, etlAction: r.etl_action ?? 'NO_ACTION', riskScore: r.risk_score ?? 0,
+        };
+      });
+      setTreeHealthSnapshots(snapMap);
+    };
+    fetchData();
+  }, [session?.user]);
+
   useEffect(() => {
     if (formData.pincode.trim().length !== 6) { setPincodeError(null); return; }
     const controller = new AbortController();
@@ -534,9 +613,17 @@ const Fields = () => {
     if (!googleMaps?.maps) return;
     const center = formData.boundaryPath[0]
       ? { lat: formData.boundaryPath[0].lat, lng: formData.boundaryPath[0].lng }
-      : { lat: 33.7782, lng: 76.5762 };
-    const map = new googleMaps.maps.Map(mapContainerRef.current, { center, zoom: 13, mapTypeControl: true, mapTypeControlOptions: { position: googleMaps.maps.ControlPosition.TOP_LEFT, mapTypeIds: ['roadmap', 'satellite'] }, streetViewControl: false });
+      : (formData.latitude && formData.longitude
+        ? { lat: formData.latitude, lng: formData.longitude }
+        : { lat: 33.7782, lng: 76.5762 });
+    const map = new googleMaps.maps.Map(mapContainerRef.current, { center, zoom: 13, mapTypeId: 'satellite', mapTypeControl: true, mapTypeControlOptions: { position: googleMaps.maps.ControlPosition.TOP_LEFT, mapTypeIds: ['roadmap', 'satellite'] }, streetViewControl: false });
     mapInstanceRef.current = map;
+    // Fit map to saved field boundary on load
+    if (formData.boundaryPath && formData.boundaryPath.length > 1) {
+      const bounds = new googleMaps.maps.LatLngBounds();
+      formData.boundaryPath.forEach((p: { lat: number; lng: number }) => bounds.extend({ lat: p.lat, lng: p.lng }));
+      map.fitBounds(bounds);
+    }
     map.addListener('click', (event: any) => {
       const position = event?.latLng; if (!position) return;
       new googleMaps.maps.Marker({ position: { lat: position.lat(), lng: position.lng() }, map: mapInstanceRef.current, icon: { path: googleMaps.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#f00', fillOpacity: 0.7, strokeWeight: 1, strokeColor: '#fff' } });
@@ -570,7 +657,18 @@ const Fields = () => {
       lineDrawBtn.innerHTML = '<svg style="display:inline;vertical-align:middle;margin-right:0.4em;" width="18" height="18" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M4 20L20 4M4 4h16v16"/></svg>Draw Tree Line';
       lineDrawBtn.className = 'bg-green-600 hover:bg-green-700 text-white text-[15px] font-semibold px-3 py-1.5 rounded-md shadow border border-green-700';
       lineDrawBtn.style.cssText = 'display:flex;align-items:center;gap:0.4em;height:34px;';
-      lineDrawBtn.onclick = () => drawingManager.setDrawingMode('polyline');
+      lineDrawBtn.onclick = () => {
+        // Only allow draw if selected row is not already fully tagged
+        const selRowId = (document.getElementById('line-row-select') as HTMLSelectElement)?.value;
+        if (!selRowId) { alert('Please select a row first.'); return; }
+        const selRow = (formData.rows || []).find((r) => r.rowId === selRowId);
+        if (selRow) {
+          const nT = selRow.varieties.reduce((s, v) => s + (parseInt(v.trees) || 0), 0);
+          const tagged = (formData.treeTags || []).filter((t) => t.rowNumber === selRow.rowId).length;
+          if (tagged >= nT && nT > 0) { alert(`Row ${selRow.rowId} is already fully tagged (${tagged}/${nT} trees). Cannot draw again.`); return; }
+        }
+        drawingManager.setDrawingMode('polyline');
+      };
       lineControlPanel.appendChild(lineRowSelect); lineControlPanel.appendChild(lineDrawBtn);
       map.controls[googleMaps.maps.ControlPosition.TOP_RIGHT].push(lineControlPanel);
     }
@@ -619,6 +717,23 @@ const Fields = () => {
         }
         setFormData((prev) => ({ ...prev, treeTags: [...prev.treeTags, ...treeTags] }));
         event.overlay.setMap(null);
+        // Always reset drawing mode to null after a row is drawn — user must click button again
+        drawingManager.setDrawingMode(null);
+        // Mark the row as tagged in the dropdown if fully filled
+        const lineRowSelectEl = document.getElementById('line-row-select') as HTMLSelectElement;
+        if (lineRowSelectEl) {
+          const totalAfter = alreadyTagged + treesToAdd;
+          if (totalAfter >= nTrees) {
+            for (let i = 0; i < lineRowSelectEl.options.length; i++) {
+              if (lineRowSelectEl.options[i].value === selectedRowId) {
+                lineRowSelectEl.options[i].text = `Row ${selectedRowId} (Tagged)`;
+                lineRowSelectEl.options[i].disabled = true;
+                break;
+              }
+            }
+            lineRowSelectEl.value = '';
+          }
+        }
       }
     });
     if (kmlObjectUrlRef.current) {
@@ -651,8 +766,14 @@ const Fields = () => {
       marker.addListener('click', () => {
         mapInstanceRef.current?.panTo({ lat: tag.latitude, lng: tag.longitude }); mapInstanceRef.current?.setZoom(18); setSelectedTreeId(tag.id);
         if (infoWindow) infoWindow.close();
-        infoWindow = new googleMaps.maps.InfoWindow({ content: `<div style='min-width:140px'><div><strong>${tag.name || 'Tree'}</strong></div><div>Row: ${tag.rowNumber || '-'}</div><div>Variety: ${tag.variety || '-'}</div></div>` });
+        const snap = treeHealthSnapshots[tag.id];
+        const healthLabel = snap ? (snap.healthStatus.charAt(0) + snap.healthStatus.slice(1).toLowerCase()) : 'Not scouted';
+        const healthColor = snap ? ({ HEALTHY: '#22c55e', STRESSED: '#f59e0b', INFECTED: '#f97316', CRITICAL: '#ef4444' }[snap.healthStatus] || '#9ca3af') : '#9ca3af';
+        const scoutedDate = snap?.lastScoutedAt ? new Date(snap.lastScoutedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+        const lastPest = snap?.lastPestName || null;
+        infoWindow = new googleMaps.maps.InfoWindow({ content: `<div style='min-width:180px;font-family:sans-serif;padding:4px'><div style='font-weight:700;font-size:14px;margin-bottom:4px'>🌳 ${tag.name || 'Tree'}</div><div style='font-size:11px;color:#666;margin-bottom:2px'>Row: ${tag.rowNumber || '-'} &nbsp;|&nbsp; Variety: ${tag.variety || '-'}</div><div style='margin-top:6px;padding:6px 8px;border-radius:8px;background:#f9fafb;border:1px solid #e5e7eb'><span style='font-size:11px;font-weight:700;color:${healthColor}'>● ${healthLabel}</span>${scoutedDate ? `<div style='font-size:10px;color:#888;margin-top:2px'>Last scouted: ${scoutedDate}</div>` : ''}${lastPest ? `<div style='font-size:10px;color:#888;margin-top:1px'>Pest: ${lastPest}</div>` : ''}${snap ? `<div style='font-size:10px;color:#888;margin-top:1px'>Risk: ${snap.riskScore}/100 &nbsp;|&nbsp; Obs: ${snap.totalObservations}</div>` : ''}</div></div>` });
         infoWindow.open(mapInstanceRef.current, marker);
+        handleOpenScoutingModal(tag as any);
       });
       return marker;
     });
@@ -696,7 +817,6 @@ const Fields = () => {
     resetWizard();
   };
 
-  const navigate = useNavigate();
   const handleViewOnMap = (field: Field) => {
     if (field.id) navigate(`/dashboard?fieldId=${field.id}`);
     else if (field.latitude && field.longitude) navigate(`/dashboard?lat=${field.latitude}&lng=${field.longitude}`);
@@ -735,6 +855,12 @@ const Fields = () => {
   const totalFieldsArea = fields.reduce((sum, f) => sum + ((f as any).mapAreaKanal ?? (f as any).areaKanal ?? f.area ?? 0), 0);
   const totalFieldTrees = fields.reduce((sum, f) => {
     const d = (f as any).details; if (!d) return sum;
+    // Prefer row-based count (most accurate), then varietyTrees, then nothing
+    if (Array.isArray(d.rows) && d.rows.length > 0) {
+      const fromRows = d.rows.reduce((rs: number, row: any) =>
+        rs + (Array.isArray(row.varieties) ? row.varieties.reduce((s: number, v: any) => s + (parseInt(v.trees) || 0), 0) : 0), 0);
+      if (fromRows > 0) return sum + fromRows;
+    }
     if (Array.isArray(d.varietyTrees)) return sum + d.varietyTrees.reduce((s: number, v: any) => s + (parseInt(v.totalTrees) || 0), 0);
     return sum;
   }, 0);
@@ -853,7 +979,17 @@ const Fields = () => {
               const details = (field as any).details ?? {};
               const orchardType   = details.orchardType || '';
               const varietyTrees  = Array.isArray(details.varietyTrees) ? details.varietyTrees.filter((v: any) => v.variety) : [];
-              const totalTrees    = details.totalTrees || varietyTrees.reduce((s: number, v: any) => s + (parseInt(v.totalTrees) || 0), 0);
+              // Sum trees from rows.varieties (most accurate) → fallback to varietyTrees top-level → fallback to details.totalTrees
+              const totalTrees = (() => {
+                if (Array.isArray(details.rows) && details.rows.length > 0) {
+                  const fromRows = details.rows.reduce((rowSum: number, row: any) =>
+                    rowSum + (Array.isArray(row.varieties) ? row.varieties.reduce((s: number, v: any) => s + (parseInt(v.trees) || 0), 0) : 0), 0);
+                  if (fromRows > 0) return fromRows;
+                }
+                const fromVarietyTrees = varietyTrees.reduce((s: number, v: any) => s + (parseInt(v.totalTrees) || 0), 0);
+                if (fromVarietyTrees > 0) return fromVarietyTrees;
+                return parseInt(details.totalTrees) || 0;
+              })();
               const totalRows     = Array.isArray(details.rows) ? details.rows.length : 0;
               const displayArea   = details.mapAreaKanal ?? details.areaKanal ?? field.area ?? '—';
 
@@ -931,7 +1067,7 @@ const Fields = () => {
                     )}
 
                     {/* Extra info */}
-                    <div className="space-y-1 mb-4">
+                    <div className="space-y-1 mb-3">
                       {field.latitude && field.longitude && (
                         <div className="flex items-center gap-1.5 text-xs text-gray-400">
                           <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
@@ -945,6 +1081,46 @@ const Fields = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Scouted Trees */}
+                    {(() => {
+                      const tags = fieldTreeTags[field.id] ?? [];
+                      if (tags.length === 0) return null;
+                      const scoutedCount = tags.filter(t => treeHealthSnapshots[t.id]).length;
+                      return (
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                              Scouted Trees ({scoutedCount}/{tags.length})
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {tags.slice(0, 8).map((tag) => {
+                              const snap = treeHealthSnapshots[tag.id];
+                              const meta = snap ? getScoutingHealthMeta(snap.healthStatus) : null;
+                              return (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() => handleOpenScoutingModal(tag as any)}
+                                  className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full border transition-all hover:scale-105 hover:shadow-sm ${meta ? `${meta.badge} ${meta.border}` : 'bg-gray-100 text-gray-500 border-gray-200'}`}
+                                  title={`${tag.name || 'Tree'} — ${meta ? meta.label : 'Not scouted'}`}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta ? meta.dot : '#9ca3af' }} />
+                                  {tag.name || `Tree`}
+                                  {meta && <span className="opacity-70">· {meta.label}</span>}
+                                </button>
+                              );
+                            })}
+                            {tags.length > 8 && (
+                              <span className="text-[9px] font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                                +{tags.length - 8} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Action buttons */}
                     <div className="flex gap-2">
@@ -1481,6 +1657,142 @@ const Fields = () => {
                   </li>
                 ))}
               </ul>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ SCOUTING DETAILS MODAL ══════════ */}
+        {scoutingModal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setScoutingModal(null)} />
+            <div className="fld-scale-in relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" style={{ maxHeight: '90vh' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 fld-header-banner">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-lg shadow">
+                    🌳
+                  </div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-white">{scoutingModal.tag.name || 'Tree'}</h2>
+                    <p className="text-xs text-emerald-200">{scoutingModal.tag.variety || 'Unknown variety'} · Scouting Details</p>
+                  </div>
+                </div>
+                <button onClick={() => setScoutingModal(null)} className="p-2 rounded-xl bg-white/15 hover:bg-white/25 transition-colors">
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+                {/* Health snapshot */}
+                {scoutingModal.snapshot ? (() => {
+                  const snap = scoutingModal.snapshot!;
+                  const meta = getScoutingHealthMeta(snap.healthStatus);
+                  const etlLabels: Record<string, string> = {
+                    NO_ACTION: 'No Action', MONITOR: 'Monitor Closely',
+                    TREAT_TREE: 'Treat This Tree', TREAT_BLOCK: 'Treat Entire Block', TREAT_ORCHARD: 'Full Orchard Spray',
+                  };
+                  return (
+                    <div className={`rounded-2xl border p-4 mb-4 ${meta.bg} ${meta.border}`}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center border-2" style={{ background: `${meta.dot}20`, borderColor: meta.dot }}>
+                          <span className="text-lg">🌿</span>
+                        </div>
+                        <div>
+                          <span className={`text-sm font-extrabold ${meta.text}`}>{meta.label}</span>
+                          <p className="text-xs text-gray-400">{snap.totalObservations} total observation{snap.totalObservations !== 1 ? 's' : ''}</p>
+                        </div>
+                        <span className={`ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full ${meta.badge}`}>{meta.label}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white/60 rounded-xl p-2.5">
+                          <p className="text-gray-400 font-semibold mb-0.5">Risk Score</p>
+                          <p className="font-extrabold text-gray-900">{snap.riskScore}/100</p>
+                        </div>
+                        <div className="bg-white/60 rounded-xl p-2.5">
+                          <p className="text-gray-400 font-semibold mb-0.5">Recommended Action</p>
+                          <p className={`font-bold text-xs ${meta.text}`}>{etlLabels[snap.etlAction] ?? snap.etlAction}</p>
+                        </div>
+                        {snap.lastScoutedAt && (
+                          <div className="bg-white/60 rounded-xl p-2.5">
+                            <p className="text-gray-400 font-semibold mb-0.5">Last Scouted</p>
+                            <p className="font-bold text-gray-900">{new Date(snap.lastScoutedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          </div>
+                        )}
+                        {snap.lastPestName && (
+                          <div className="bg-white/60 rounded-xl p-2.5">
+                            <p className="text-gray-400 font-semibold mb-0.5">Last Pest</p>
+                            <p className="font-bold text-gray-900 truncate">{snap.lastPestName}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 mb-4 text-center">
+                    <span className="text-2xl mb-1 block">🌿</span>
+                    <p className="text-sm font-semibold text-gray-700">Not yet scouted</p>
+                    <p className="text-xs text-gray-400 mt-0.5">No health snapshot available for this tree</p>
+                  </div>
+                )}
+
+                {/* Recent observations */}
+                <div className="mb-4">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Recent Observations</h4>
+                  {scoutingModal.loading ? (
+                    <div className="flex items-center justify-center py-6 gap-2">
+                      <div className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-xs text-gray-400">Loading…</p>
+                    </div>
+                  ) : scoutingModal.recentObs.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 py-5 text-center">
+                      <p className="text-xs text-gray-400">No observations recorded yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {scoutingModal.recentObs.map((obs, oi) => {
+                        const sevLabel = ['None','Trace','Low','Moderate','High','Severe'][obs.severityScore] ?? String(obs.severityScore);
+                        const sevColor = ['text-gray-400','text-emerald-600','text-yellow-600','text-orange-600','text-red-600','text-red-800'][obs.severityScore] ?? 'text-gray-600';
+                        return (
+                          <div key={oi} className="rounded-xl border border-gray-100 bg-white p-3">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <span className="text-xs font-bold text-gray-900">{obs.pestName}</span>
+                              <span className={`text-[10px] font-bold ${sevColor}`}>{sevLabel}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-[10px] text-gray-400 mb-1">
+                              {obs.affectedPart && <span>🌿 {obs.affectedPart.replace(/_/g, ' ')}</span>}
+                              {obs.scoutedAt && <span>🕒 {new Date(obs.scoutedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                            </div>
+                            {obs.notes && <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2">{obs.notes}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (scoutingModal.tag.id) params.set('treeTagId', scoutingModal.tag.id);
+                      if ((scoutingModal.tag as any).fieldId) params.set('fieldId', (scoutingModal.tag as any).fieldId);
+                      setScoutingModal(null);
+                      navigate(`/tree-scouting?${params.toString()}`);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #0f766e, #059669)' }}
+                  >
+                    View Full Scouting →
+                  </button>
+                  <button
+                    onClick={() => setScoutingModal(null)}
+                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

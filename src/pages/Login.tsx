@@ -1,5 +1,5 @@
 /**
- * Login.tsx  — RBAC-aware login (Enhanced UI)
+ * Login.tsx  — RBAC-aware login (SKUAST-style Premium UI)
  */
 
 import React, { useEffect, useState } from 'react';
@@ -9,46 +9,138 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
 const LOGIN_STYLES = `
-@keyframes lgFadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
-@keyframes lgScaleIn { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+/* ─── Keyframes ─── */
+@keyframes lgFadeUp {
+  from { opacity:0; transform:translateY(24px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes lgFadeDown {
+  from { opacity:0; transform:translateY(-18px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes lgScaleIn {
+  from { opacity:0; transform:scale(0.90); }
+  to   { opacity:1; transform:scale(1); }
+}
+@keyframes lgSlideRight {
+  from { opacity:0; transform:translateX(-20px); }
+  to   { opacity:1; transform:translateX(0); }
+}
 @keyframes lgGradShift {
-  0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
+  0%   { background-position:0% 50%; }
+  50%  { background-position:100% 50%; }
+  100% { background-position:0% 50%; }
 }
-@keyframes lgFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+@keyframes lgFloat {
+  0%,100% { transform:translateY(0); }
+  50%     { transform:translateY(-10px); }
+}
 @keyframes lgPulseRing {
-  0%{transform:scale(1);opacity:0.7} 100%{transform:scale(1.8);opacity:0}
+  0%   { transform:scale(1);   opacity:0.8; }
+  100% { transform:scale(1.6); opacity:0; }
 }
-.lg-fade-up  { animation: lgFadeUp  0.55s cubic-bezier(.22,1,.36,1) both }
-.lg-scale-in { animation: lgScaleIn 0.45s cubic-bezier(.22,1,.36,1) both }
-.lg-d0{animation-delay:0s} .lg-d1{animation-delay:.07s} .lg-d2{animation-delay:.14s}
-.lg-d3{animation-delay:.21s} .lg-d4{animation-delay:.28s} .lg-d5{animation-delay:.35s}
+@keyframes lgLeafSway {
+  0%, 100% { transform: rotate(-4deg); }
+  50%       { transform: rotate(4deg); }
+}
+@keyframes lgGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.3); }
+  50%       { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
+}
+@keyframes lgBlobDrift {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  33%       { transform: translate(40px,-30px) scale(1.1); }
+  66%       { transform: translate(-20px,20px) scale(0.95); }
+}
+@keyframes lgShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+/* ─── Animation helpers ─── */
+.lg-fade-up    { animation: lgFadeUp   0.6s cubic-bezier(.22,1,.36,1) both; }
+.lg-fade-down  { animation: lgFadeDown 0.55s cubic-bezier(.22,1,.36,1) both; }
+.lg-scale-in   { animation: lgScaleIn  0.5s  cubic-bezier(.22,1,.36,1) both; }
+.lg-slide-r    { animation: lgSlideRight 0.5s cubic-bezier(.22,1,.36,1) both; }
+.lg-float      { animation: lgFloat 4s ease-in-out infinite; }
+.lg-glow       { animation: lgGlow 2.8s ease-in-out infinite; }
+.lg-leaf       { display:inline-block; animation: lgLeafSway 3s ease-in-out infinite; transform-origin: bottom center; }
+
+.lg-d0 { animation-delay:0s;   }
+.lg-d1 { animation-delay:.08s; }
+.lg-d2 { animation-delay:.16s; }
+.lg-d3 { animation-delay:.24s; }
+.lg-d4 { animation-delay:.32s; }
+.lg-d5 { animation-delay:.40s; }
+.lg-d6 { animation-delay:.48s; }
+
+/* Animated gradient background */
 .lg-bg {
-  background: linear-gradient(135deg,#064e3b,#065f46,#047857,#059669,#10b981,#34d399,#10b981,#047857);
-  background-size:300% 300%;
+  background: linear-gradient(135deg, #052e16, #064e3b, #065f46, #047857, #059669, #10b981, #34d399, #10b981, #047857, #052e16);
+  background-size: 300% 300%;
   animation: lgGradShift 10s ease infinite;
 }
-.lg-logo { animation: lgFloat 4s ease-in-out infinite }
+
+/* Animated blobs */
+.lg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: lgBlobDrift 12s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glassy card — stronger white so form fields are clearly visible */
+.lg-card {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow:
+    0 24px 64px rgba(0,0,0,0.30),
+    0 1px 0 rgba(255,255,255,0.9) inset;
+}
+
+/* Solid white input — clearly readable on the opaque card */
 .lg-input {
   transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  background: #ffffff;
+  border: 1.5px solid #d1fae5;
+  color: #064e3b;
 }
+.lg-input::placeholder { color: #9ca3af; }
 .lg-input:focus {
-  border-color: #16a34a !important;
-  box-shadow: 0 0 0 3px rgba(22,163,74,0.15);
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.18);
   background: #f0fdf4;
   outline: none;
 }
+
+/* Glassy button */
 .lg-btn {
-  transition: transform .2s ease, box-shadow .2s ease;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
 }
 .lg-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(22,163,74,0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(16,185,129,0.45);
 }
 .lg-btn:active:not(:disabled) { transform: translateY(0); }
-.lg-card {
-  background: rgba(255,255,255,0.97);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.8);
+
+/* Pulse indicator */
+.lg-pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(167,243,208,0.5);
+  animation: lgPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite;
+}
+
+/* Shimmer accent bar */
+.lg-shimmer {
+  background: linear-gradient(90deg, rgba(167,243,208,0.2) 25%, rgba(167,243,208,0.5) 50%, rgba(167,243,208,0.2) 75%);
+  background-size: 400px 100%;
+  animation: lgShimmer 2s ease-in-out infinite;
 }
 `;
 
@@ -105,57 +197,69 @@ const Login: React.FC = () => {
     <>
       <style>{LOGIN_STYLES}</style>
       <div className="min-h-screen lg-bg flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute top-0 left-0 w-96 h-96 rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-white/5 translate-x-1/3 translate-y-1/3 pointer-events-none" />
-        <div className="absolute top-1/2 right-10 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
 
-        <div className="lg-scale-in lg-card w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
-          {/* Card top accent */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-green-400 via-emerald-500 to-green-600" />
+        {/* ── Animated background blobs ── */}
+        <div className="lg-blob w-96 h-96 bg-emerald-400/20 top-[-5rem] left-[-6rem]" style={{ animationDuration: '14s' }} />
+        <div className="lg-blob w-80 h-80 bg-teal-500/15 bottom-[-4rem] right-[-4rem]" style={{ animationDuration: '18s', animationDelay: '3s' }} />
+        <div className="lg-blob w-56 h-56 bg-green-300/15 top-1/2 right-16" style={{ animationDuration: '10s', animationDelay: '6s' }} />
+        <div className="lg-blob w-40 h-40 bg-emerald-600/15 bottom-24 left-20" style={{ animationDuration: '16s', animationDelay: '1s' }} />
+
+        {/* ── Decorative grid lines ── */}
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+
+        {/* ── Glassy Card ── */}
+        <div className="lg-scale-in lg-card w-full max-w-md rounded-3xl overflow-hidden relative z-10">
+          {/* Shimmer top accent */}
+          <div className="h-1 w-full lg-shimmer" />
 
           <div className="p-8 sm:p-10">
-            {/* Logo + Title */}
+            {/* Logo */}
             <div className="text-center mb-8">
-              <div className="lg-logo inline-flex w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-700 items-center justify-center shadow-xl shadow-green-300/40 mb-5">
-                <img src="/logo.png" alt="AppleKul™" className="w-14 h-14 object-contain" />
+              <div className="lg-float lg-glow inline-block rounded-full mb-2">
+                <img src="/logo.png" alt="AppleKul™"  className="w-24 h-24 rounded-xl object-contain mx-auto" />
               </div>
-              <h1 className="lg-fade-up lg-d0 text-3xl font-extrabold text-gray-900 tracking-tight">AppleKul™ Suite</h1>
-              <p className="lg-fade-up lg-d1 text-sm text-gray-500 mt-1.5">Sign in to manage your orchard</p>
+              <div className="lg-fade-down lg-d0 text-lg font-extrabold tracking-wide mb-3" style={{ color: '#5a7a3a', fontFamily: 'Georgia, serif' }}>
+                AppleKul™ Suite
+              </div>
+
+              <h1 className="lg-fade-up lg-d1 text-3xl font-extrabold text-gray-900 tracking-tight">
+                <span className="lg-leaf">🌿</span> Welcome Back
+              </h1>
+              <p className="lg-fade-up lg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Sign in to manage your orchard</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
-              <div className="lg-fade-up lg-d2 space-y-1.5">
-                <label htmlFor="email" className="block text-xs font-bold text-gray-500 uppercase tracking-wide">
+              <div className="lg-slide-r lg-d2 space-y-1.5">
+                <label htmlFor="email" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
                   <input
                     id="email" type="email" value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="lg-input w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-sm"
+                    className="lg-input w-full pl-10 pr-4 py-3 rounded-xl text-sm"
                     placeholder="your.email@example.com" required
                   />
                 </div>
               </div>
 
               {/* Password */}
-              <div className="lg-fade-up lg-d3 space-y-1.5">
-                <label htmlFor="password" className="block text-xs font-bold text-gray-500 uppercase tracking-wide">
+              <div className="lg-slide-r lg-d3 space-y-1.5">
+                <label htmlFor="password" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
                   <input
                     id="password" type={showPassword ? 'text' : 'password'}
                     value={password} onChange={e => setPassword(e.target.value)}
-                    className="lg-input w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl bg-gray-50 text-sm"
+                    className="lg-input w-full pl-10 pr-12 py-3 rounded-xl text-sm"
                     placeholder="Enter your password" required
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-700 transition-colors">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -163,8 +267,8 @@ const Login: React.FC = () => {
 
               {/* Error */}
               {errorMessage && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                <div className="lg-fade-up flex items-center gap-2 px-4 py-3 bg-red-900/40 border border-red-400/40 backdrop-blur-sm rounded-xl text-sm text-red-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
                   {errorMessage}
                 </div>
               )}
@@ -174,7 +278,7 @@ const Login: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="lg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-extrabold text-base shadow-lg shadow-green-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="lg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30"
                 >
                   {loading ? (
                     <>
@@ -188,15 +292,18 @@ const Login: React.FC = () => {
 
             {/* Footer links */}
             <div className="lg-fade-up lg-d5 mt-7 text-center space-y-3">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-700 font-medium">
                 Don't have an account?{' '}
-                <Link to="/signup" className="text-green-600 hover:text-green-700 font-bold">Sign Up</Link>
+                <Link to="/signup" className="text-emerald-600 hover:text-emerald-800 font-bold transition-colors underline underline-offset-2">Sign Up</Link>
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 font-medium">
                 Doctors are redirected to the Orchard Hospital portal automatically.
               </p>
             </div>
           </div>
+
+          {/* Card bottom shimmer accent */}
+          <div className="h-0.5 w-full lg-shimmer opacity-50" />
         </div>
       </div>
     </>
