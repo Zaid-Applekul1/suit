@@ -1,1 +1,248 @@
 @import "tailwindcss";
+
+/* =====================================================
+   GLOBAL MOBILE-FIRST BASE STYLES
+   ===================================================== */
+
+/* 1. Prevent horizontal overflow on every device */
+html,
+body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* 2. Smooth, momentum-based scrolling on iOS */
+html {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 3. Viewport meta enforcement via CSS â€” ensures text
+      never scales up on iOS after orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 4. Box-sizing reset (safe to apply globally) */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 5. Minimum touch-target size for all interactive elements
+      (WCAG 2.5.5 AA â€” 44Ã—44 px) */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+label[for] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* 6. Prevent double-tap zoom on interactive elements (iOS) */
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* 7. Remove default tap highlight on mobile WebKit */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 8. Prevent long words / URLs from breaking layouts on small screens */
+p,
+h1, h2, h3, h4, h5, h6,
+li,
+td,
+th,
+label,
+span {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* 9. Make all images and media fluid by default */
+img,
+video,
+svg,
+iframe,
+embed,
+object {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 10. Scrollable tables / code blocks on small screens */
+table {
+  width: 100%;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+pre,
+code {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* =====================================================
+   LAYOUT SHELL â€” sidebar + main content
+   The Layout component uses a sidebar on md+ and a
+   bottom-nav / drawer on mobile. These rules ensure
+   the page content area never escapes the viewport.
+   ===================================================== */
+
+/* Page wrapper set by Layout.tsx */
+#root {
+  min-height: 100dvh;          /* dynamic viewport height â€” handles iOS address bar */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main content area â€” pushed right by sidebar on md+,
+   full-width on mobile */
+.main-content {
+  flex: 1;
+  min-width: 0;                 /* prevents flex children from overflowing */
+  overflow-x: hidden;
+}
+
+/* =====================================================
+   BOTTOM NAVIGATION (mobile) â€” safe area for notched
+   phones (iPhone X+, Android cutout devices)
+   ===================================================== */
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* When a bottom-nav is present, add matching padding
+   to the page so content isn't hidden beneath it */
+.has-bottom-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* =====================================================
+   SIDEBAR (desktop) â€” fix position, full height
+   ===================================================== */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* =====================================================
+   SCROLLABLE HORIZONTAL ROWS
+   (field chips, tree chips, weather cards, etc.)
+   ===================================================== */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* hide scrollbar on WebKit but keep scroll behaviour */
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge */
+}
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* =====================================================
+   MODAL / BOTTOM SHEET â€” safe-area aware
+   ===================================================== */
+.modal-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* =====================================================
+   RESPONSIVE TYPOGRAPHY SCALE
+   Fluid type so headings don't overflow on phones
+   ===================================================== */
+@media (max-width: 639px) {
+  h1 { font-size: clamp(1.5rem,  5vw, 2rem);   }
+  h2 { font-size: clamp(1.25rem, 4vw, 1.5rem); }
+  h3 { font-size: clamp(1rem,    3vw, 1.25rem);}
+}
+
+/* =====================================================
+   INPUT / FORM ACCESSIBILITY ON MOBILE
+   iOS zooms in when font-size < 16px on focused inputs
+   ===================================================== */
+input,
+textarea,
+select {
+  font-size: 16px;              /* prevents iOS auto-zoom */
+}
+
+@media (min-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: inherit;         /* restore normal size on larger screens */
+  }
+}
+
+/* =====================================================
+   LOADING SPINNER (App.tsx RequireAuth state)
+   ===================================================== */
+.app-loading {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #f0fdf4 0%, #ecfdf5 40%, #f8fafc 100%);
+  padding: 1rem;
+}
+
+.app-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.app-loading-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid #bbf7d0;
+  border-top-color: #16a34a;
+  border-radius: 50%;
+  animation: appSpin 0.8s linear infinite;
+}
+
+@keyframes appSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* =====================================================
+   PRINT â€” hide nav/sidebar, show content only
+   ===================================================== */
+@media print {
+  .sidebar,
+  .bottom-nav,
+  nav {
+    display: none !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

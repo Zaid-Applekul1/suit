@@ -1,0 +1,30 @@
+name: The Applekul One Robot (CEO Guard)
+
+# The Robot wakes up every time a developer tries to add code
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  inspect-code:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Catch the Code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Setup Node.js (The Engine)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install Developer Packages
+        run: npm ci
+
+     
+      - name: 🛡️ Strict Type Check (No "Any" allowed)
+        run: npx tsc --noEmit
+
+      - name: 🏗️ Build Test (Will it crash the app?)
+        run: npm run build

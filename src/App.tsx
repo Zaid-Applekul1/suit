@@ -18,8 +18,12 @@ const RequireAuth = ({ children }: { children: ReactNode }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-600">
-        Loading...
+      <div className="app-loading">
+        <div className="app-loading-inner">
+          <span className="text-3xl select-none" aria-hidden="true">🌿</span>
+          <div className="app-loading-spinner" role="status" aria-label="Loading" />
+          <p className="text-sm font-medium text-gray-500 tracking-wide">Loading your orchard…</p>
+        </div>
       </div>
     );
   }
