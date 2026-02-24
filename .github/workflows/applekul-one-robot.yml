@@ -22,8 +22,11 @@ jobs:
       - name: 📦 Install Developer Packages
         run: npm ci
 
-     
+      - name: 🧹 Check for Messy Code (Linting)
+        run: npm run lint
+
       - name: 🛡️ Strict Type Check (No "Any" allowed)
         run: npx tsc --noEmit
 
-     
+      - name: 🏗️ Build Test (Will it crash the app?)
+        run: npm run build

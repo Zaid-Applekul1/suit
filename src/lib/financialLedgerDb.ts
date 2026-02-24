@@ -22,6 +22,7 @@ export interface Chemical {
   unit: string;
   rate: number;
   recommended: string;
+  imageUrl?: string;  // public URL stored in Supabase Storage (or base64 for display before upload)
 }
 
 export interface Spray {
@@ -94,8 +95,51 @@ function mapSprayRow(row: any): Spray {
         unit: c.unit,
         rate: Number(c.rate),
         recommended: c.recommended,
+        imageUrl: c.photo_url || undefined,
       })),
   };
+}
+
+/**
+ * Upload a base64 data URL image to Supabase Storage (chemical-images bucket).
+ * Returns the public URL, or undefined if upload fails.
+ */
+async function uploadChemicalImage(
+  orchardId: string,
+  dataUrl: string,
+  chemIdx: number
+): Promise<string | undefined> {
+  try {
+    // Convert base64 data URL to Blob
+    const [meta, base64] = dataUrl.split(',');
+    const mimeMatch = meta.match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const byteStr = atob(base64);
+    const arr = new Uint8Array(byteStr.length);
+    for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+    const blob = new Blob([arr], { type: mime });
+
+    const ext = mime.split('/')[1] || 'jpg';
+    const path = `${orchardId}/${Date.now()}_${chemIdx}.${ext}`;
+
+    const { error } = await (supabase as any).storage
+      .from('chemical-images')
+      .upload(path, blob, { contentType: mime, upsert: false });
+
+    if (error) {
+      console.warn('Chemical image upload failed:', error.message);
+      return undefined;
+    }
+
+    const { data } = (supabase as any).storage
+      .from('chemical-images')
+      .getPublicUrl(path);
+
+    return data?.publicUrl as string | undefined;
+  } catch (err) {
+    console.warn('Chemical image upload error:', err);
+    return undefined;
+  }
 }
 
 export async function fetchSprays(orchardId: string): Promise<Spray[]> {
@@ -130,8 +174,19 @@ export async function createSpray(
 
   if (sprayErr) throw new Error(`createSpray: ${sprayErr.message}`);
 
-  // 2. Insert chemicals
+  // 2. Upload chemical images and insert chemicals
   if (spray.chemicals.length > 0) {
+    // Upload images in parallel (for any that are base64 data URLs)
+    const photoUrls = await Promise.all(
+      spray.chemicals.map(async (c, idx) => {
+        if (c.imageUrl && c.imageUrl.startsWith('data:')) {
+          return uploadChemicalImage(orchardId, c.imageUrl, idx);
+        }
+        // Already a public URL (or empty) — keep as-is
+        return c.imageUrl || null;
+      })
+    );
+
     const { error: chemErr } = await db
       .from('spray_chemicals')
       .insert(
@@ -144,6 +199,7 @@ export async function createSpray(
           unit: c.unit,
           rate: c.rate,
           recommended: c.recommended,
+          photo_url: photoUrls[idx] ?? null,
           sort_order: idx,
         }))
       );

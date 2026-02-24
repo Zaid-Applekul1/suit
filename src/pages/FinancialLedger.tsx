@@ -1,25 +1,23 @@
+
 /**
  * FinancialLedger.tsx  — Supabase-connected version
  *
- * What changed vs the original:
- *  1. Imports + uses `useFinancialLedger(orchardId)` hook.
- *  2. All useState arrays (sprays, activities, workers, incomeEntries)
- *     removed – they come from the DB via the hook.
- *  3. saveSpray / saveActivity / saveWorker / saveIncome now call
- *     db.addSpray / db.addActivity / db.addWorker / db.addIncome (async).
- *  4. delete handlers call db.removeX.
- *  5. togglePaid calls db.markPaid.
- *  6. Loading + error states shown at top.
- *  7. Component uses user_id from session/context; no orchardId prop.
+ * Changes:
+ *  1. Spray operations: each chemical can have a product image (camera/upload).
+ *  2. Labour Registry: phone number is the unique identity.
+ *     - If same phone exists → new entry adds days to existing total.
+ *     - All totals auto-recalculate.
+ *     - Individual work entries are editable inline.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Droplets, ChevronDown, ChevronUp, Trash2, Users,
   TrendingUp, TrendingDown, DollarSign, Leaf, Wrench,
   ShoppingBag, BarChart2, CheckCircle2, Scissors, Shovel,
   Sprout, Package, Truck, Settings, X, ArrowRight, Activity,
   FlaskConical, Calendar, Hash, Loader2, AlertTriangle,
+  Camera, Image, Pencil, Save, XCircle,
 } from 'lucide-react';
 import { useFinancialLedger } from '../hooks/useFinancialLedger';
 import { useAuth } from '../contexts/AuthContext';
@@ -93,7 +91,36 @@ const EXPENSE_CATEGORY_CONFIG: ExpenseCategoryConfig[] = [
 
 /* ================= TYPES ================= */
 
-type Chemical = { name:string; brand:string; qty:number; unit:string; rate:number; recommended:string; };
+type Chemical = {
+  name: string; brand: string; qty: number; unit: string; rate: number;
+  recommended: string;
+  imageUrl?: string;   // NEW: product image (base64 data URL or object URL)
+};
+
+/* Worker entry with phone as unique identity */
+interface WorkerEntry {
+  id: string;
+  name: string;
+  phone: string;          // unique identity
+  activity: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  ratePerDay: number;
+  advance: number;
+  paid: boolean;
+  entries: WorkEntry[];   // individual work entries
+}
+
+interface WorkEntry {
+  id: string;
+  activity: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  ratePerDay: number;
+  advance: number;
+}
 
 /* ================= HELPERS ================= */
 
@@ -106,7 +133,7 @@ const daysBetween = (start: string, end: string) => {
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n);
 
-/* ================= SUB-COMPONENTS (unchanged) ================= */
+/* ================= SUB-COMPONENTS ================= */
 
 function SummaryCard({ label, value, color, icon: Icon, sub }: { label:string; value:number; color:string; icon:any; sub?:string }) {
   return (
@@ -155,8 +182,103 @@ function ExpenseCategoryCard({ config, totalCost, count, isSelected, onClick }: 
   );
 }
 
-function SprayDetailPanel({ sprays, openSprayId, setOpenSprayId, onDelete, sprayCost, chemicalCost, totalSprayCost, mutating }: any) {
+/* ── Chemical Image Picker ── */
+function ChemicalImagePicker({
+  imageUrl, onChange, onViewFull,
+}: {
+  imageUrl?: string;
+  onChange: (url: string) => void;
+  onViewFull?: (src: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if (ev.target?.result) onChange(ev.target.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
+    <div className="flex items-center gap-2">
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+      {imageUrl ? (
+        <div className="relative group">
+          <button
+            type="button"
+            onClick={() => onViewFull?.(imageUrl)}
+            title="Click to view full image"
+            className="block focus:outline-none"
+          >
+            <img
+              src={imageUrl}
+              alt="Product"
+              className="w-10 h-10 rounded-lg object-cover border border-gray-200 shadow-sm group-hover:scale-110 transition-transform duration-200 cursor-zoom-in"
+            />
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="absolute -top-1.5 -right-1.5 hidden group-hover:flex w-4 h-4 bg-red-500 rounded-full text-white items-center justify-center z-10"
+          >
+            <X className="w-2.5 h-2.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          title="Add product photo"
+          className="w-10 h-10 rounded-lg border-2 border-dashed border-sky-300 flex items-center justify-center text-sky-400 hover:border-sky-500 hover:text-sky-600 hover:bg-sky-50 transition"
+        >
+          <Camera className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Full-screen Image Modal ── */
+function ImageModal({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div className="relative max-w-full max-h-full" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={onClose}
+          className="absolute -top-3 -right-3 z-10 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-gray-700 hover:text-red-600 transition"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <img
+          src={src}
+          alt={alt}
+          className="fld-modal-img max-w-[90vw] max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/20"
+        />
+        <p className="text-white/70 text-xs text-center mt-2">{alt}</p>
+      </div>
+    </div>
+  );
+}
+
+function SprayDetailPanel({ sprays, openSprayId, setOpenSprayId, onDelete, sprayCost, chemicalCost, totalSprayCost, mutating }: any) {
+  const [modalImage, setModalImage] = useState<{ src: string; alt: string } | null>(null);
+  return (
+    <>
+    {modalImage && (
+      <ImageModal src={modalImage.src} alt={modalImage.alt} onClose={() => setModalImage(null)} />
+    )}
     <div className="space-y-3">
       {sprays.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
@@ -165,7 +287,7 @@ function SprayDetailPanel({ sprays, openSprayId, setOpenSprayId, onDelete, spray
         </div>
       ) : sprays.map((s: Spray) => (
         <div key={s.id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-sky-50 transition"
+          <div className="flex items-center justify-between px-3 sm:px-4 py-3 cursor-pointer hover:bg-sky-50 transition"
                onClick={() => setOpenSprayId(openSprayId === s.id ? null : s.id)}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
@@ -190,16 +312,55 @@ function SprayDetailPanel({ sprays, openSprayId, setOpenSprayId, onDelete, spray
             </div>
           </div>
           {openSprayId === s.id && (
-            <div className="px-4 pb-4 pt-3 bg-gray-50 border-t space-y-2">
-              <div className="grid grid-cols-5 text-xs font-bold text-gray-400 uppercase mb-2 tracking-wide">
-                <span className="col-span-2">Chemical</span><span>Qty</span><span>Rate</span><span className="text-right">Cost</span>
+            <div className="px-3 sm:px-4 pb-4 pt-3 bg-gray-50 border-t space-y-2">
+              {/* Desktop header */}
+              <div className="hidden sm:grid sm:grid-cols-6 text-xs font-bold text-gray-400 uppercase mb-2 tracking-wide">
+                <span className="col-span-1">Photo</span>
+                <span className="col-span-2">Chemical</span>
+                <span>Qty</span><span>Rate</span><span className="text-right col-span-1">Cost</span>
               </div>
               {s.chemicals.map((c: Chemical, i: number) => (
-                <div key={i} className="grid grid-cols-5 py-2 border-b border-gray-200 text-sm">
-                  <div className="col-span-2"><p className="font-semibold text-gray-800">{c.name}</p><p className="text-xs text-gray-500">{c.brand}</p></div>
-                  <span className="text-gray-700">{c.qty} {c.unit}</span>
-                  <span className="text-gray-700">₹{c.rate}/{c.unit}</span>
-                  <span className="text-right font-bold text-sky-700">₹{fmt(chemicalCost(c))}</span>
+                <div key={i} className="py-2 border-b border-gray-200">
+                  {/* Desktop row */}
+                  <div className="hidden sm:grid sm:grid-cols-6 text-sm items-center gap-2">
+                    <div className="col-span-1 flex items-center">
+                      {c.imageUrl ? (
+                        <button type="button" onClick={() => setModalImage({ src: c.imageUrl!, alt: c.brand || c.name })} className="focus:outline-none group" title="Click to view full image">
+                          <img src={c.imageUrl} alt={c.brand} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-transform duration-200 cursor-zoom-in" />
+                        </button>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <Image className="w-4 h-4 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-span-2">
+                      <p className="font-semibold text-gray-800 text-xs">{c.name}</p>
+                      <p className="text-xs text-gray-500">{c.brand}</p>
+                    </div>
+                    <span className="text-gray-700">{c.qty} {c.unit}</span>
+                    <span className="text-gray-700">₹{c.rate}/{c.unit}</span>
+                    <span className="text-right font-bold text-sky-700">₹{fmt(chemicalCost(c))}</span>
+                  </div>
+                  {/* Mobile row */}
+                  <div className="flex sm:hidden items-center gap-3">
+                    <div className="flex-shrink-0">
+                      {c.imageUrl ? (
+                        <button type="button" onClick={() => setModalImage({ src: c.imageUrl!, alt: c.brand || c.name })} className="focus:outline-none" title="Click to view full image">
+                          <img src={c.imageUrl} alt={c.brand} className="w-12 h-12 rounded-lg object-cover border border-gray-200 shadow-sm cursor-zoom-in" />
+                        </button>
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <Image className="w-5 h-5 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm truncate">{c.name} <span className="text-gray-400 font-normal text-xs">({c.brand})</span></p>
+                      <p className="text-xs text-gray-500">{c.qty} {c.unit} × ₹{c.rate}/{c.unit}</p>
+                    </div>
+                    <span className="font-bold text-sky-700 text-sm flex-shrink-0">₹{fmt(chemicalCost(c))}</span>
+                  </div>
                 </div>
               ))}
               <div className="flex justify-between text-sm pt-1">
@@ -222,6 +383,7 @@ function SprayDetailPanel({ sprays, openSprayId, setOpenSprayId, onDelete, spray
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -318,7 +480,92 @@ const FL_STYLES = `
 @media (max-width:640px) {
   .fld-hero-actions { flex-direction:column; align-items:flex-start; }
 }
+
+/* Image modal entrance animation */
+@keyframes fldModalIn { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
+.fld-modal-img { animation: fldModalIn 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+/* Cursor zoom */
+.cursor-zoom-in { cursor: zoom-in; }
 `;
+
+/* ================= LOCAL WORKER STATE MANAGEMENT ================= */
+
+/**
+ * Manages worker entries locally with phone as unique identity.
+ * When the same phone is submitted again, days are added to existing total.
+ * All totals auto-recalculate.
+ */
+function useLocalWorkers(dbWorkers: LabourWorker[], dbAddWorker: any, dbRemoveWorker: any, dbMarkPaid: any) {
+  // Local state for worker entries (keyed by phone)
+  const [localEntries, setLocalEntries] = useState<WorkEntry[]>([]);
+  // editingEntry: { workerId, entryId } — which entry is being edited inline
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<WorkEntry>>({});
+
+  /**
+   * Group db workers by phone. For each phone, aggregate total days,
+   * keep all individual entries accessible.
+   */
+  const workersByPhone = useMemo(() => {
+    const map = new Map<string, {
+      phone: string; name: string; paid: boolean; id: string;
+      entries: (LabourWorker & { entryId: string })[];
+    }>();
+    dbWorkers.forEach(w => {
+      const key = w.phone || w.id; // phone as unique key, fallback to id if no phone
+      if (!map.has(key)) {
+        map.set(key, { phone: w.phone || '', name: w.name, paid: w.paid, id: w.id, entries: [] });
+      }
+      map.get(key)!.entries.push({ ...w, entryId: w.id });
+      // If any entry is not paid, mark the worker as not fully paid
+      if (!w.paid) map.get(key)!.paid = false;
+    });
+    return Array.from(map.values());
+  }, [dbWorkers]);
+
+  const startEdit = (entryId: string, entry: LabourWorker) => {
+    setEditingEntryId(entryId);
+    setEditDraft({
+      id: entry.id,
+      activity: entry.activity,
+      startDate: entry.startDate,
+      endDate: entry.endDate,
+      days: entry.days,
+      ratePerDay: entry.ratePerDay,
+      advance: entry.advance,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingEntryId(null);
+    setEditDraft({});
+  };
+
+  const saveEdit = async (originalWorker: LabourWorker) => {
+    if (!editingEntryId) return;
+    const newDays = editDraft.startDate && editDraft.endDate
+      ? daysBetween(editDraft.startDate, editDraft.endDate)
+      : (editDraft.days ?? originalWorker.days);
+    // Remove old and re-add with updated data
+    await dbRemoveWorker(originalWorker.id);
+    await dbAddWorker({
+      name: originalWorker.name,
+      phone: originalWorker.phone,
+      activity: (editDraft.activity || originalWorker.activity) as any,
+      startDate: editDraft.startDate || originalWorker.startDate,
+      endDate: editDraft.endDate || originalWorker.endDate,
+      days: newDays,
+      ratePerDay: editDraft.ratePerDay ?? originalWorker.ratePerDay,
+      advance: editDraft.advance ?? originalWorker.advance,
+      paid: originalWorker.paid,
+    });
+    setEditingEntryId(null);
+    setEditDraft({});
+  };
+
+  return { workersByPhone, editingEntryId, editDraft, setEditDraft, startEdit, cancelEdit, saveEdit };
+}
 
 /* ================= MAIN COMPONENT ================= */
 
@@ -361,6 +608,13 @@ export default function FinancialLedger() {
   const [wEnd, setWEnd]         = useState('');
   const [wRate, setWRate]       = useState('');
   const [wAdvance, setWAdvance] = useState('');
+  const [workerMsg, setWorkerMsg] = useState<{ type: 'info' | 'success'; text: string } | null>(null);
+
+  /* ---- Expanded worker rows ---- */
+  const [expandedWorkerPhone, setExpandedWorkerPhone] = useState<string | null>(null);
+
+  /* ---- Image modal (for spray form thumbnails) ---- */
+  const [formModalImage, setFormModalImage] = useState<{ src: string; alt: string } | null>(null);
 
   /* ---- Income form state ---- */
   const [incVariety, setIncVariety]     = useState('');
@@ -369,6 +623,10 @@ export default function FinancialLedger() {
   const [incPrice, setIncPrice]         = useState('');
   const [incDate, setIncDate]           = useState('');
   const [incBuyer, setIncBuyer]         = useState('');
+
+  /* ---- Worker local management ---- */
+  const { workersByPhone, editingEntryId, editDraft, setEditDraft, startEdit, cancelEdit, saveEdit }
+    = useLocalWorkers(db.workers, db.addWorker, db.removeWorker, db.markPaid);
 
   /* ================= PURE CALCULATIONS ================= */
 
@@ -389,7 +647,7 @@ export default function FinancialLedger() {
 
   /* ================= SPRAY ACTIONS ================= */
 
-  const addChemical    = () => setChemicals([...chemicals, { name:'', brand:'', qty:0, unit:'', rate:0, recommended:'' }]);
+  const addChemical    = () => setChemicals([...chemicals, { name:'', brand:'', qty:0, unit:'kg', rate:0, recommended:'', imageUrl:'' }]);
   const removeChemical = (i: number) => setChemicals(chemicals.filter((_, idx) => idx !== i));
   const updateChemical = (i: number, key: keyof Chemical, value: any) => {
     const copy = [...chemicals]; (copy[i] as any)[key] = value; setChemicals(copy);
@@ -430,14 +688,35 @@ export default function FinancialLedger() {
 
   const saveWorker = async () => {
     if (!wName || !wStart || !wRate) return;
-    const days = daysBetween(wStart, wEnd);
+
+    const phone = wPhone.trim();
+    const days  = daysBetween(wStart, wEnd);
+
+    // Check if worker with same phone already exists
+    const existing = phone ? db.workers.find(w => w.phone === phone) : null;
+
+    if (existing) {
+      // Same worker → add new work entry (days accumulate)
+      setWorkerMsg({ type: 'info', text: `Adding new work entry for ${existing.name}. Days will be added to existing total.` });
+    } else {
+      setWorkerMsg({ type: 'success', text: `New worker "${wName}" registered.` });
+    }
+
     await db.addWorker({
-      name: wName, phone: wPhone, activity: wActivity,
-      startDate: wStart, endDate: wEnd || wStart, days,
-      ratePerDay: Number(wRate), advance: Number(wAdvance || 0), paid: false,
+      name: existing?.name || wName,   // keep original name if existing
+      phone,
+      activity: wActivity,
+      startDate: wStart,
+      endDate: wEnd || wStart,
+      days,
+      ratePerDay: Number(wRate),
+      advance: Number(wAdvance || 0),
+      paid: false,
     });
+
     setWName(''); setWPhone(''); setWActivity('GENERAL');
     setWStart(''); setWEnd(''); setWRate(''); setWAdvance('');
+    setTimeout(() => setWorkerMsg(null), 3500);
   };
 
   /* ================= INCOME ACTIONS ================= */
@@ -478,19 +757,18 @@ export default function FinancialLedger() {
   return (
     <>
     <style>{FL_STYLES}</style>
+    {formModalImage && (
+      <ImageModal src={formModalImage.src} alt={formModalImage.alt} onClose={() => setFormModalImage(null)} />
+    )}
     <div className="min-h-screen bg-gray-50">
 
       {/* ── SKUAST-STYLE HERO HEADER ── */}
       <div className="fld-fade-dn fld-d0 relative overflow-hidden rounded-b-3xl fld-hero-banner shadow-2xl">
-        {/* Shimmer top accent */}
         <div className="h-1 w-full fld-shimmer"/>
-        {/* Decorative circles */}
         <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute top-6 right-28 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
-
         <div className="relative px-6 py-9 sm:py-11 flex flex-col items-center text-center gap-4">
-          {/* Live badge */}
           <div className="fld-scale-in fld-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
             <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 fld-pulse" />
             Season 2025–2026 · Live
@@ -548,7 +826,7 @@ export default function FinancialLedger() {
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-6">
 
         {/* ════ EXPENSES ════════════════════════════════════════════ */}
         {tab === 'expenses' && (
@@ -563,7 +841,7 @@ export default function FinancialLedger() {
                   Total: <span className="text-red-600">₹{fmt(db.totalExpenses)}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
                 {EXPENSE_CATEGORY_CONFIG.map(cfg => {
                   const summary = categorySummaries.find(s => s.key === cfg.key)!;
                   return (
@@ -580,7 +858,7 @@ export default function FinancialLedger() {
                 <style>{`@keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
                 {/* Panel Header */}
-                <div className="flex items-center justify-between px-6 py-4" style={{ background:selectedCategoryConfig.gradient }}>
+                <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 gap-2" style={{ background:selectedCategoryConfig.gradient }}>
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl" style={{ background:'rgba(255,255,255,0.2)' }}>
                       <selectedCategoryConfig.Icon className="w-5 h-5 text-white" />
@@ -604,7 +882,7 @@ export default function FinancialLedger() {
 
                 {/* Add Form */}
                 {showAddForm && (
-                  <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">
+                  <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-gray-100 bg-gray-50">
                     {selectedCategoryConfig.dataSource === 'spray' ? (
                       /* ---- SPRAY FORM ---- */
                       <div className="space-y-4">
@@ -622,25 +900,53 @@ export default function FinancialLedger() {
                             )}
                           </div>
                         </div>
+
+                        {/* Chemicals with Image Upload */}
                         <div className="space-y-2 mt-2">
                           {chemicals.map((c, i) => (
-                            <div key={i} className="grid grid-cols-2 sm:grid-cols-7 gap-2 items-center bg-white rounded-lg p-3 border">
-                              <select className="border rounded px-2 py-1.5 text-sm sm:col-span-2" value={c.name} onChange={e => selectChemical(i, e.target.value)}>
-                                <option value="">Chemical Name</option>
-                                {CHEMICAL_LIBRARY.map(ch => <option key={ch.name}>{ch.name}</option>)}
-                              </select>
-                              <input placeholder="Brand" className="border rounded px-2 py-1.5 text-sm bg-gray-50" value={c.brand} onChange={e => updateChemical(i,'brand',e.target.value)} />
-                              <input type="number" placeholder="Qty" className="border rounded px-2 py-1.5 text-sm" value={c.qty||''} onChange={e => updateChemical(i,'qty',+e.target.value)} />
-                              <input placeholder="Unit" className="border rounded px-2 py-1.5 text-sm bg-gray-50" value={c.unit} readOnly />
-                              <input type="number" placeholder="Rate ₹" className="border rounded px-2 py-1.5 text-sm" value={c.rate||''} onChange={e => updateChemical(i,'rate',+e.target.value)} />
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-sm font-bold text-sky-700">₹{fmt(chemicalCost(c))}</span>
-                                <button onClick={() => removeChemical(i)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                            <div key={i} className="bg-white rounded-xl border border-gray-200 p-3 space-y-2 shadow-sm">
+                              <div className="flex items-center gap-2">
+                                {/* Product image picker */}
+                                <ChemicalImagePicker
+                                  imageUrl={c.imageUrl}
+                                  onChange={url => updateChemical(i, 'imageUrl', url)}
+                                  onViewFull={src => setFormModalImage({ src, alt: c.brand || c.name || 'Product' })}
+                                />
+                                <select className="flex-1 border rounded px-2 py-1.5 text-sm" value={c.name} onChange={e => selectChemical(i, e.target.value)}>
+                                  <option value="">Chemical Name</option>
+                                  {CHEMICAL_LIBRARY.map(ch => <option key={ch.name}>{ch.name}</option>)}
+                                </select>
+                                <input placeholder="Brand" className="flex-1 border rounded px-2 py-1.5 text-sm bg-gray-50" value={c.brand} onChange={e => updateChemical(i,'brand',e.target.value)} />
+                                <button onClick={() => removeChemical(i)} className="text-red-400 hover:text-red-600 p-1">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
-                              {c.recommended && <div className="sm:col-span-7 text-xs text-gray-500 px-1">Recommended: {c.recommended}</div>}
+                              <div className="grid grid-cols-3 gap-2">
+                                <input type="number" placeholder="Qty" className="border rounded px-2 py-1.5 text-sm" value={c.qty||''} onChange={e => updateChemical(i,'qty',+e.target.value)} />
+                                <select className="border rounded px-2 py-1.5 text-sm bg-white" value={c.unit} onChange={e => updateChemical(i,'unit',e.target.value)}>
+                                  <option value="">Unit</option>
+                                  <option value="kg">kg</option>
+                                  <option value="grams">grams</option>
+                                  <option value="ml">ml</option>
+                                  <option value="l">l</option>
+                                  <option value="g">g</option>
+                                </select>
+                                <div className="flex items-center gap-2">
+                                  <input type="number" placeholder="Rate ₹" className="border rounded px-2 py-1.5 text-sm flex-1" value={c.rate||''} onChange={e => updateChemical(i,'rate',+e.target.value)} />
+                                  <span className="text-sm font-bold text-sky-700 whitespace-nowrap">₹{fmt(chemicalCost(c))}</span>
+                                </div>
+                              </div>
+                              {c.recommended && <p className="text-xs text-gray-500 px-1">Recommended: {c.recommended}</p>}
+                              {/* Image preview label */}
+                              {!c.imageUrl && (
+                                <p className="text-xs text-gray-400 flex items-center gap-1">
+                                  <Camera className="w-3 h-3" /> Tap the camera icon to add a product photo
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
+
                         <button onClick={addChemical} className="border border-sky-400 text-sky-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm hover:bg-sky-50">
                           <Plus className="w-4 h-4" /> Add Chemical
                         </button>
@@ -701,7 +1007,7 @@ export default function FinancialLedger() {
                 )}
 
                 {/* Records */}
-                <div className="px-6 py-5">
+                <div className="px-3 sm:px-6 py-4 sm:py-5">
                   {selectedCategoryConfig.dataSource === 'spray' ? (
                     <SprayDetailPanel sprays={db.sprays} openSprayId={openSprayId} setOpenSprayId={setOpenSprayId}
                       onDelete={db.removeSpray} sprayCost={sprayCost} chemicalCost={chemicalCost}
@@ -725,7 +1031,7 @@ export default function FinancialLedger() {
 
         {/* ════ INCOME ═══════════════════════════════════════════════ */}
         {tab === 'income' && (
-          <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
+          <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 space-y-6">
             <SectionHeader title="Harvest Income — Crate Sales" icon={ShoppingBag} color="border-green-600" />
             <div className="bg-green-50 rounded-xl p-4 space-y-4">
               <p className="font-semibold text-green-800">Record Sale</p>
@@ -758,7 +1064,32 @@ export default function FinancialLedger() {
             {db.income.length > 0 && (
               <div>
                 <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Sales Records</p>
-                <div className="overflow-x-auto rounded-xl border">
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-3">
+                  {db.income.map((entry) => (
+                    <div key={entry.id} className="border rounded-xl p-3 bg-white">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-bold text-gray-800">{entry.variety}</p>
+                          <p className="text-xs text-gray-500">{entry.date}{entry.buyer ? ` · ${entry.buyer}` : ''}</p>
+                          <p className="text-xs text-gray-600 mt-1">{entry.crates} crates · {entry.crates * entry.kgPerCrate} kg · ₹{entry.pricePerCrate}/crate</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-green-700">₹{fmt(entry.crates * entry.pricePerCrate)}</span>
+                          <button onClick={() => db.removeIncome(entry.id)} disabled={db.mutating} className="text-red-400 hover:text-red-600 disabled:opacity-40 p-1">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-between bg-green-50 rounded-xl px-4 py-3 font-bold border border-green-200">
+                    <span>{db.income.reduce((s,i)=>s+i.crates,0)} crates · {fmt(totalYieldKg)} kg</span>
+                    <span className="text-green-700">₹{fmt(db.totalIncome)}</span>
+                  </div>
+                </div>
+                {/* Desktop table */}
+                <div className="hidden sm:block overflow-x-auto rounded-xl border">
                   <table className="w-full text-sm">
                     <thead className="bg-green-50 text-gray-600 text-xs uppercase">
                       <tr>
@@ -809,13 +1140,41 @@ export default function FinancialLedger() {
 
         {/* ════ LABOUR REGISTRY ══════════════════════════════════════ */}
         {tab === 'labour' && (
-          <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
+          <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 space-y-6">
             <SectionHeader title="Labour Registry" icon={Users} color="border-purple-600" />
+
+            {/* Worker registration form */}
             <div className="bg-purple-50 rounded-xl p-4 space-y-4">
-              <p className="font-semibold text-purple-800">Register Worker</p>
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-purple-800">Register Worker</p>
+                <p className="text-xs text-purple-500 bg-purple-100 px-2 py-1 rounded-full">Phone = unique identity</p>
+              </div>
+
+              {/* Status message */}
+              {workerMsg && (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                  workerMsg.type === 'info' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-green-50 text-green-700 border border-green-200'
+                }`}>
+                  <span>{workerMsg.text}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <input placeholder="Worker Name *" className="border rounded-lg px-3 py-2 text-sm" value={wName} onChange={e => setWName(e.target.value)} />
-                <input placeholder="Phone Number" type="tel" className="border rounded-lg px-3 py-2 text-sm" value={wPhone} onChange={e => setWPhone(e.target.value)} />
+                <div className="relative">
+                  <input
+                    placeholder="Phone Number (unique ID)"
+                    type="tel"
+                    className="border rounded-lg px-3 py-2 text-sm w-full"
+                    value={wPhone}
+                    onChange={e => setWPhone(e.target.value)}
+                  />
+                  {wPhone && db.workers.some(w => w.phone === wPhone.trim()) && (
+                    <div className="absolute -bottom-5 left-0 text-xs text-blue-600 flex items-center gap-1">
+                      <span>Existing worker — days will be added</span>
+                    </div>
+                  )}
+                </div>
                 <select className="border rounded-lg px-3 py-2 bg-white text-sm" value={wActivity} onChange={e => setWActivity(e.target.value as any)}>
                   <option value="SPRAY">Spray Operation</option>
                   {ACTIVITY_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
@@ -842,56 +1201,310 @@ export default function FinancialLedger() {
               <button onClick={saveWorker} disabled={!wName||!wStart||!wRate||db.mutating}
                 className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2">
                 {db.mutating && <Loader2 className="w-4 h-4 animate-spin" />}
-                Register Worker
+                {wPhone && db.workers.some(w => w.phone === wPhone.trim()) ? 'Add Work Entry' : 'Register Worker'}
               </button>
             </div>
 
             {db.workers.length > 0 && (
               <>
+                {/* Summary stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-purple-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500 mb-1">Total Workers</p><p className="text-2xl font-extrabold text-purple-700">{db.workers.length}</p></div>
-                  <div className="bg-purple-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500 mb-1">Total Wages</p><p className="text-2xl font-extrabold text-purple-700">₹{fmt(db.totalLabourCost)}</p></div>
-                  <div className="bg-orange-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500 mb-1">Advance Paid</p><p className="text-2xl font-extrabold text-orange-600">₹{fmt(db.totalAdvancePaid)}</p></div>
-                  <div className="bg-red-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500 mb-1">Balance Due</p><p className="text-2xl font-extrabold text-red-600">₹{fmt(totalLabourDue)}</p></div>
+                  <div className="bg-purple-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Total Workers</p>
+                    <p className="text-2xl font-extrabold text-purple-700">{workersByPhone.length}</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Total Wages</p>
+                    <p className="text-2xl font-extrabold text-purple-700">₹{fmt(db.totalLabourCost)}</p>
+                  </div>
+                  <div className="bg-orange-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Advance Paid</p>
+                    <p className="text-2xl font-extrabold text-orange-600">₹{fmt(db.totalAdvancePaid)}</p>
+                  </div>
+                  <div className="bg-red-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Balance Due</p>
+                    <p className="text-2xl font-extrabold text-red-600">₹{fmt(totalLabourDue)}</p>
+                  </div>
                 </div>
-                <div className="overflow-x-auto rounded-xl border">
+
+                {/* Workers grouped by phone — mobile cards */}
+                <div className="sm:hidden space-y-3">
+                  {workersByPhone.map((group, gi) => {
+                    const totalDays  = group.entries.reduce((s, e) => s + e.days, 0);
+                    const totalGross = group.entries.reduce((s, e) => s + e.days * e.ratePerDay, 0);
+                    const totalAdv   = group.entries.reduce((s, e) => s + e.advance, 0);
+                    const totalBal   = totalGross - totalAdv;
+                    const isExpanded = expandedWorkerPhone === group.phone;
+                    const hasMultiple= group.entries.length > 1;
+                    return (
+                      <div key={`mob-${group.phone || gi}`} className={`border rounded-xl overflow-hidden ${group.paid ? 'opacity-60' : ''}`}>
+                        <div className="flex items-center justify-between px-3 py-2.5 bg-purple-50" onClick={() => hasMultiple && setExpandedWorkerPhone(isExpanded ? null : group.phone)}>
+                          <div>
+                            <p className="font-bold text-gray-800 text-sm">{group.name} {hasMultiple && <span className="text-xs bg-purple-200 text-purple-700 px-1.5 py-0.5 rounded-full">{group.entries.length}</span>}</p>
+                            <p className="text-xs text-gray-500">{group.phone || '—'}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">{totalDays} days · ₹{fmt(totalGross)}</p>
+                              <p className="text-xs text-purple-700 font-bold">Bal: ₹{fmt(totalBal)}</p>
+                            </div>
+                            <button onClick={e => { e.stopPropagation(); db.markPaid(group.id, !group.paid); }} disabled={db.mutating} className="p-1">
+                              {group.paid ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-400" />}
+                            </button>
+                            {!hasMultiple && (
+                              <button onClick={e => { e.stopPropagation(); db.removeWorker(group.id); }} disabled={db.mutating} className="text-red-400 hover:text-red-600 p-1">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {hasMultiple && (isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />)}
+                          </div>
+                        </div>
+                        {isExpanded && group.entries.map((entry, ei) => (
+                          <div key={`mob-entry-${entry.entryId}`} className="px-3 py-2 border-t border-purple-100 bg-white flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700">Entry {ei+1}: {ACTIVITY_CATEGORIES.find(c=>c.key===entry.activity)?.label||entry.activity}</p>
+                              <p className="text-xs text-gray-500">{entry.startDate}{entry.endDate!==entry.startDate?` → ${entry.endDate}`:''} · {entry.days}d × ₹{entry.ratePerDay}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <p className="text-xs font-bold">₹{fmt(entry.days*entry.ratePerDay)}</p>
+                                <p className="text-xs text-orange-600">Adv: ₹{fmt(entry.advance)}</p>
+                              </div>
+                              <button onClick={() => db.removeWorker(entry.entryId)} disabled={db.mutating} className="text-red-400 hover:text-red-600 p-1">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Workers grouped by phone — desktop table */}
+                <div className="hidden sm:block overflow-x-auto rounded-xl border">
                   <table className="w-full text-sm">
                     <thead className="bg-purple-50 text-gray-600 text-xs uppercase">
                       <tr>
-                        <th className="px-4 py-3 text-left">Name</th><th className="px-4 py-3 text-left">Phone</th>
-                        <th className="px-4 py-3 text-left">Activity</th><th className="px-4 py-3 text-center">Days</th>
-                        <th className="px-4 py-3 text-right">Rate/Day</th><th className="px-4 py-3 text-right">Gross</th>
-                        <th className="px-4 py-3 text-right">Advance</th><th className="px-4 py-3 text-right">Balance</th>
-                        <th className="px-4 py-3 text-center">Paid</th><th className="px-4 py-3"></th>
+                        <th className="px-4 py-3 text-left">Name</th>
+                        <th className="px-4 py-3 text-left">Phone</th>
+                        <th className="px-4 py-3 text-left">Activity</th>
+                        <th className="px-4 py-3 text-center">Days</th>
+                        <th className="px-4 py-3 text-right">Rate/Day</th>
+                        <th className="px-4 py-3 text-right">Gross</th>
+                        <th className="px-4 py-3 text-right">Advance</th>
+                        <th className="px-4 py-3 text-right">Balance</th>
+                        <th className="px-4 py-3 text-center">Paid</th>
+                        <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {db.workers.map((w, i) => {
-                        const gross   = w.days * w.ratePerDay;
-                        const balance = gross - w.advance;
+                      {workersByPhone.map((group, gi) => {
+                        // Aggregate totals for this phone
+                        const totalDays    = group.entries.reduce((s, e) => s + e.days, 0);
+                        const totalGross   = group.entries.reduce((s, e) => s + e.days * e.ratePerDay, 0);
+                        const totalAdv     = group.entries.reduce((s, e) => s + e.advance, 0);
+                        const totalBal     = totalGross - totalAdv;
+                        const isExpanded   = expandedWorkerPhone === group.phone;
+                        const hasMultiple  = group.entries.length > 1;
+
                         return (
-                          <tr key={w.id} className={`${i%2===0?'bg-white':'bg-gray-50'} ${w.paid?'opacity-60':''}`}>
-                            <td className="px-4 py-3 font-semibold">{w.name}</td>
-                            <td className="px-4 py-3 text-gray-500">{w.phone||'—'}</td>
-                            <td className="px-4 py-3 text-gray-600">{ACTIVITY_CATEGORIES.find(c=>c.key===w.activity)?.label||w.activity}</td>
-                            <td className="px-4 py-3 text-center font-semibold">{w.days}</td>
-                            <td className="px-4 py-3 text-right">₹{w.ratePerDay}</td>
-                            <td className="px-4 py-3 text-right font-semibold">₹{fmt(gross)}</td>
-                            <td className="px-4 py-3 text-right text-orange-600">₹{fmt(w.advance)}</td>
-                            <td className="px-4 py-3 text-right font-bold text-purple-700">₹{fmt(balance)}</td>
-                            <td className="px-4 py-3 text-center">
-                              <button onClick={() => db.markPaid(w.id, !w.paid)} disabled={db.mutating}>
-                                {w.paid
-                                  ? <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto" />
-                                  : <div className="w-5 h-5 rounded-full border-2 border-gray-400 mx-auto" />}
-                              </button>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <button onClick={() => db.removeWorker(w.id)} disabled={db.mutating} className="text-red-400 hover:text-red-600 disabled:opacity-40">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
+                          <>
+                            {/* Summary row per worker */}
+                            <tr
+                              key={`grp-${group.phone || gi}`}
+                              className={`${gi % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${group.paid ? 'opacity-60' : ''} cursor-pointer hover:bg-purple-50 transition`}
+                              onClick={() => hasMultiple && setExpandedWorkerPhone(isExpanded ? null : group.phone)}
+                            >
+                              <td className="px-4 py-3 font-semibold flex items-center gap-2">
+                                {group.name}
+                                {hasMultiple && (
+                                  <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
+                                    {group.entries.length} entries
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-gray-500">{group.phone || '—'}</td>
+                              <td className="px-4 py-3 text-gray-600">
+                                {group.entries.length === 1
+                                  ? ACTIVITY_CATEGORIES.find(c => c.key === group.entries[0].activity)?.label || group.entries[0].activity
+                                  : <span className="text-purple-500 text-xs">Multiple</span>}
+                              </td>
+                              <td className="px-4 py-3 text-center font-semibold">{totalDays}</td>
+                              <td className="px-4 py-3 text-right">
+                                {group.entries.length === 1 ? `₹${group.entries[0].ratePerDay}` : '—'}
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold">₹{fmt(totalGross)}</td>
+                              <td className="px-4 py-3 text-right text-orange-600">₹{fmt(totalAdv)}</td>
+                              <td className="px-4 py-3 text-right font-bold text-purple-700">₹{fmt(totalBal)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <button onClick={e => { e.stopPropagation(); db.markPaid(group.id, !group.paid); }} disabled={db.mutating}>
+                                  {group.paid
+                                    ? <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto" />
+                                    : <div className="w-5 h-5 rounded-full border-2 border-gray-400 mx-auto" />}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {hasMultiple
+                                  ? (isExpanded
+                                      ? <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
+                                      : <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />)
+                                  : <button onClick={e => { e.stopPropagation(); db.removeWorker(group.id); }} disabled={db.mutating} className="text-red-400 hover:text-red-600 disabled:opacity-40">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                }
+                              </td>
+                            </tr>
+
+                            {/* Expanded individual work entries */}
+                            {isExpanded && group.entries.map((entry, ei) => {
+                              const eGross   = entry.days * entry.ratePerDay;
+                              const eBal     = eGross - entry.advance;
+                              const isEdit   = editingEntryId === entry.entryId;
+                              const eDays    = isEdit && editDraft.startDate && editDraft.endDate
+                                ? daysBetween(editDraft.startDate, editDraft.endDate)
+                                : entry.days;
+
+                              return (
+                                <tr key={`entry-${entry.entryId}`} className="bg-purple-50/60 border-t border-purple-100">
+                                  <td className="pl-8 pr-4 py-2.5 text-xs text-gray-500 italic">
+                                    {isEdit ? (
+                                      <select className="border rounded px-1.5 py-1 text-xs bg-white" value={editDraft.activity || entry.activity}
+                                        onChange={e => setEditDraft(d => ({ ...d, activity: e.target.value }))}>
+                                        <option value="SPRAY">Spray Operation</option>
+                                        {ACTIVITY_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                                      </select>
+                                    ) : (
+                                      `Entry ${ei + 1}`
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-xs text-gray-400">
+                                    {isEdit ? '' : `${entry.startDate}${entry.endDate !== entry.startDate ? ` → ${entry.endDate}` : ''}`}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-xs">
+                                    {isEdit ? (
+                                      <div className="flex gap-1">
+                                        <input type="date" className="border rounded px-1.5 py-1 text-xs" value={editDraft.startDate || entry.startDate}
+                                          onChange={e => setEditDraft(d => ({ ...d, startDate: e.target.value }))} />
+                                        <input type="date" className="border rounded px-1.5 py-1 text-xs" value={editDraft.endDate || entry.endDate}
+                                          onChange={e => setEditDraft(d => ({ ...d, endDate: e.target.value }))} />
+                                      </div>
+                                    ) : (
+                                      ACTIVITY_CATEGORIES.find(c => c.key === entry.activity)?.label || entry.activity
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-center text-xs font-semibold">
+                                    {isEdit ? eDays : entry.days}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right text-xs">
+                                    {isEdit ? (
+                                      <input type="number" className="border rounded px-1.5 py-1 text-xs w-20 text-right"
+                                        value={editDraft.ratePerDay ?? entry.ratePerDay}
+                                        onChange={e => setEditDraft(d => ({ ...d, ratePerDay: +e.target.value }))} />
+                                    ) : `₹${entry.ratePerDay}`}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right text-xs font-semibold">
+                                    ₹{fmt(isEdit ? eDays * (editDraft.ratePerDay ?? entry.ratePerDay) : eGross)}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right text-xs text-orange-600">
+                                    {isEdit ? (
+                                      <input type="number" className="border rounded px-1.5 py-1 text-xs w-20 text-right"
+                                        value={editDraft.advance ?? entry.advance}
+                                        onChange={e => setEditDraft(d => ({ ...d, advance: +e.target.value }))} />
+                                    ) : `₹${fmt(entry.advance)}`}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right text-xs font-bold text-purple-700">
+                                    ₹{fmt(isEdit ? eDays * (editDraft.ratePerDay ?? entry.ratePerDay) - (editDraft.advance ?? entry.advance) : eBal)}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-center"></td>
+                                  <td className="px-4 py-2.5 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      {isEdit ? (
+                                        <>
+                                          <button onClick={() => saveEdit(entry)} disabled={db.mutating}
+                                            className="p-1 rounded text-green-600 hover:bg-green-50" title="Save">
+                                            <Save className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:bg-gray-100" title="Cancel">
+                                            <XCircle className="w-3.5 h-3.5" />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button onClick={e => { e.stopPropagation(); startEdit(entry.entryId, entry); }}
+                                            className="p-1 rounded text-blue-400 hover:text-blue-600 hover:bg-blue-50" title="Edit entry">
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button onClick={e => { e.stopPropagation(); db.removeWorker(entry.entryId); }} disabled={db.mutating}
+                                            className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40" title="Delete entry">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+
+                            {/* If single entry, show inline edit option */}
+                            {!hasMultiple && group.entries.length === 1 && (() => {
+                              const entry = group.entries[0];
+                              const isEdit = editingEntryId === entry.entryId;
+                              if (!isEdit) return null;
+                              const eDays = editDraft.startDate && editDraft.endDate
+                                ? daysBetween(editDraft.startDate, editDraft.endDate)
+                                : entry.days;
+                              return (
+                                <tr key={`edit-${entry.entryId}`} className="bg-blue-50 border-t border-blue-100">
+                                  <td colSpan={10} className="px-4 py-3">
+                                    <div className="flex flex-wrap items-end gap-3">
+                                      <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Activity</label>
+                                        <select className="border rounded px-2 py-1.5 text-sm bg-white" value={editDraft.activity || entry.activity}
+                                          onChange={e => setEditDraft(d => ({ ...d, activity: e.target.value }))}>
+                                          <option value="SPRAY">Spray Operation</option>
+                                          {ACTIVITY_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Start Date</label>
+                                        <input type="date" className="border rounded px-2 py-1.5 text-sm" value={editDraft.startDate || entry.startDate}
+                                          onChange={e => setEditDraft(d => ({ ...d, startDate: e.target.value }))} />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-gray-500 block mb-1">End Date</label>
+                                        <input type="date" className="border rounded px-2 py-1.5 text-sm" value={editDraft.endDate || entry.endDate}
+                                          onChange={e => setEditDraft(d => ({ ...d, endDate: e.target.value }))} />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Rate/Day ₹</label>
+                                        <input type="number" className="border rounded px-2 py-1.5 text-sm w-24"
+                                          value={editDraft.ratePerDay ?? entry.ratePerDay}
+                                          onChange={e => setEditDraft(d => ({ ...d, ratePerDay: +e.target.value }))} />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Advance ₹</label>
+                                        <input type="number" className="border rounded px-2 py-1.5 text-sm w-24"
+                                          value={editDraft.advance ?? entry.advance}
+                                          onChange={e => setEditDraft(d => ({ ...d, advance: +e.target.value }))} />
+                                      </div>
+                                      <div className="text-sm font-bold text-purple-700">
+                                        Days: {eDays} · Gross: ₹{fmt(eDays * (editDraft.ratePerDay ?? entry.ratePerDay))}
+                                      </div>
+                                      <button onClick={() => saveEdit(entry)} disabled={db.mutating}
+                                        className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold">
+                                        <Save className="w-3.5 h-3.5" /> Save
+                                      </button>
+                                      <button onClick={cancelEdit} className="flex items-center gap-1.5 border text-gray-600 px-3 py-1.5 rounded-lg text-sm">
+                                        <XCircle className="w-3.5 h-3.5" /> Cancel
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })()}
+                          </>
                         );
                       })}
                     </tbody>
@@ -906,6 +1519,11 @@ export default function FinancialLedger() {
                     </tfoot>
                   </table>
                 </div>
+
+                {/* Hint bar */}
+                <p className="text-xs text-gray-400 text-center">
+                  Click a row with multiple entries to expand · Click <Pencil className="inline w-3 h-3" /> to edit any work entry
+                </p>
               </>
             )}
           </div>

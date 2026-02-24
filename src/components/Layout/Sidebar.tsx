@@ -10,6 +10,7 @@ import {
   Stethoscope,
   FlaskConical,
   Search,
+  Satellite,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -217,6 +218,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </NavLink>
               </li>
             ))}
+
+            {/* External: Sky Insights satellite view */}
+            <li>
+              <a
+                href="https://skyinsights.applekul.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onClose}
+                className="sb-nav-link"
+              >
+                <Satellite className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                <span>Satellite</span>
+              </a>
+            </li>
           </ul>
         </nav>
 
