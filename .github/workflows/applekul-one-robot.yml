@@ -27,4 +27,4 @@ jobs:
 
       - name: 🏗️ Build Test (Will it crash the app?)
         run: |
-          npm run build || echo "Succesfully Build"
+          npm run build 
