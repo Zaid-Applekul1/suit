@@ -24,7 +24,7 @@ import {
   ChevronRight, Info, Loader2, Crosshair, Brain, TrendingUp,
   TrendingDown, Minus, Image as ImageIcon, RefreshCw, Thermometer,
   Wind, Droplets, Navigation, Radio, Target, Sparkles,
-  Edit2, Save, LocateFixed, Pencil,
+  Edit2, Save, LocateFixed, Pencil, Stethoscope, UserCheck,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -172,6 +172,25 @@ interface NearestTreeResult {
   confidence: number; // 0–100
 }
 
+/* Activity & Production entry types — defined early so ScoutingObservation can reference them */
+interface ActivityEntry {
+  date: string;
+  type: string;
+  product: string;
+  quantity: string;
+  notes: string;
+}
+
+interface ProductionEntry {
+  date: string;
+  fruitSize: string;
+  colorPct: string;
+  estimatedYieldKg: string;
+  numberOfCrates: string;
+  qualityGrade: string;
+  notes: string;
+}
+
 /* AI prediction output */
 interface AIPrediction {
   predictedHealth: HealthStatus;
@@ -210,6 +229,8 @@ interface ScoutingObservation {
   treeHealthStatus: HealthStatus;
   etlActionRecommended: ETLAction;
   aiPrediction: AIPrediction | null;
+  activities: ActivityEntry[];        // from Activities tab
+  production: ProductionEntry[];      // from Production tab
 }
 
 interface TreeHealthSnapshot {
@@ -1349,9 +1370,370 @@ interface ScoutingFormProps {
   onUpdateTreeLocation?: (lat: number, lng: number) => void;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   DOCTOR PICKER MODAL
+   Opens a list of Orchard Doctors (fetched from the `doctors` table).
+   The user picks one and it's returned via onSelect.
+═══════════════════════════════════════════════════════════════ */
+
+interface OD_DoctorProfile {
+  id: string;
+  name: string;
+  specialization: string;
+  hospitalName: string;
+  phone?: string;
+  bio?: string;
+  rating: number;
+  available: boolean;
+}
+
+function DoctorPickerModal({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (doctor: OD_DoctorProfile) => void;
+  onClose: () => void;
+}) {
+  const [doctors, setDoctors] = useState<OD_DoctorProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch]   = useState('');
+
+  useEffect(() => {
+    supabase
+      .from('doctors')
+      .select('id, name, specialization, hospital_name, phone, bio, rating, available')
+      .order('available', { ascending: false })
+      .order('rating', { ascending: false })
+      .then(({ data }) => {
+        setDoctors(
+          (data ?? []).map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            specialization: r.specialization,
+            hospitalName: r.hospital_name,
+            phone: r.phone,
+            bio: r.bio,
+            rating: r.rating ?? 4.5,
+            available: r.available ?? false,
+          }))
+        );
+        setLoading(false);
+      });
+  }, []);
+
+  const filtered = doctors.filter(d =>
+    (d.name + d.specialization + d.hospitalName).toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-5 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/15 rounded-xl">
+              <Stethoscope className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-white font-extrabold text-sm">Our Doctors</p>
+              <p className="text-slate-300 text-xs">Select a doctor to assign to this tree</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <input
+              className="flex-1 text-sm focus:outline-none bg-transparent placeholder:text-gray-400"
+              placeholder="Search by name, specialization…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </div>
+
+        {/* Doctor List */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+          {loading && (
+            <div className="flex items-center justify-center py-12 gap-2 text-gray-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading doctors…</span>
+            </div>
+          )}
+
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <Stethoscope className="w-10 h-10 mx-auto mb-2 opacity-20" />
+              <p className="text-sm font-medium">No doctors found.</p>
+            </div>
+          )}
+
+          {!loading && filtered.map(doctor => (
+            <button
+              key={doctor.id}
+              onClick={() => onSelect(doctor)}
+              className="w-full text-left bg-white border-2 border-gray-100 hover:border-emerald-400 hover:shadow-md rounded-2xl overflow-hidden transition-all group"
+            >
+              <div className={`h-1 w-full ${doctor.available ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-gray-300 to-gray-400'}`} />
+              <div className="px-4 py-3 flex items-start gap-3">
+                <div className="w-11 h-11 rounded-full bg-slate-800 flex items-center justify-center shrink-0 group-hover:bg-emerald-700 transition-colors">
+                  <Stethoscope className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-extrabold text-gray-800 text-sm truncate">{doctor.name}</p>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${doctor.available ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {doctor.available ? '● Available' : '○ Unavailable'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 truncate mt-0.5">{doctor.specialization} · {doctor.hospitalName}</p>
+                  {doctor.bio && <p className="text-xs text-gray-400 truncate mt-0.5">{doctor.bio}</p>}
+                  <div className="flex items-center gap-1 mt-1 text-amber-500 text-xs font-bold">
+                    {'★'.repeat(Math.min(5, Math.round(doctor.rating)))}
+                    <span className="text-gray-500 font-normal ml-1">{doctor.rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div className="shrink-0 flex items-center self-center">
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors" />
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100 shrink-0">
+          <button onClick={onClose} className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ACTIVITY_TYPES = [
+  'Pruning', 'Irrigation', 'Fertilisation', 'Spray — Fungicide',
+  'Spray — Insecticide', 'Spray — Herbicide', 'Thinning', 'Training / Binding',
+  'Soil Treatment', 'Other',
+];
+
+const QUALITY_GRADES = ['Grade A', 'Grade B', 'Grade C', 'Export Quality', 'Culls'];
+
+function ActivitiesForm({ onActivitiesChange }: { onActivitiesChange: (a: ActivityEntry[]) => void }) {
+  const [activities, setActivities] = useState<ActivityEntry[]>([
+    { date: new Date().toISOString().split('T')[0], type: '', product: '', quantity: '', notes: '' },
+  ]);
+
+  const update = (idx: number, field: keyof ActivityEntry, val: string) => {
+    setActivities(prev => {
+      const updated = prev.map((a, i) => i === idx ? { ...a, [field]: val } : a);
+      onActivitiesChange(updated);
+      return updated;
+    });
+  };
+
+  const addRow = () => {
+    setActivities(prev => {
+      const updated = [...prev, { date: new Date().toISOString().split('T')[0], type: '', product: '', quantity: '', notes: '' }];
+      onActivitiesChange(updated);
+      return updated;
+    });
+  };
+
+  const removeRow = (idx: number) => {
+    setActivities(prev => {
+      const updated = prev.filter((_, i) => i !== idx);
+      onActivitiesChange(updated);
+      return updated;
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-gray-500 font-medium">Record activities performed on this tree during or before this scouting visit.</p>
+      {activities.map((a, idx) => (
+        <div key={idx} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3 relative">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold text-emerald-700 uppercase tracking-wide">Activity {idx + 1}</span>
+            {activities.length > 1 && (
+              <button onClick={() => removeRow(idx)} className="p-1 text-red-400 hover:text-red-600 rounded-lg transition">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Date</label>
+              <input type="date" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                value={a.date} onChange={e => update(idx, 'date', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Activity Type</label>
+              <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                value={a.type} onChange={e => update(idx, 'type', e.target.value)}>
+                <option value="">Select type…</option>
+                {ACTIVITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Product / Input</label>
+              <input type="text" placeholder="e.g. Mancozeb 75 WP" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                value={a.product} onChange={e => update(idx, 'product', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Quantity / Dose</label>
+              <input type="text" placeholder="e.g. 2.5 g/L" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                value={a.quantity} onChange={e => update(idx, 'quantity', e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 block mb-1">Notes</label>
+            <input type="text" placeholder="Optional notes…" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              value={a.notes} onChange={e => update(idx, 'notes', e.target.value)} />
+          </div>
+        </div>
+      ))}
+      <button onClick={addRow}
+        className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-emerald-300 hover:border-emerald-500 text-emerald-700 py-3 rounded-2xl text-sm font-bold transition bg-white hover:bg-emerald-50">
+        <Plus className="w-4 h-4" /> Add Activity
+      </button>
+    </div>
+  );
+}
+
+const CRATE_KG = 17;
+
+function calcCrates(yieldKg: string): string {
+  const kg = parseFloat(yieldKg);
+  if (!yieldKg || isNaN(kg) || kg <= 0) return '';
+  return Math.ceil(kg / CRATE_KG).toString();
+}
+
+function ProductionForm({ onProductionChange }: { onProductionChange: (p: ProductionEntry[]) => void }) {
+  const [entries, setEntries] = useState<ProductionEntry[]>([
+    { date: new Date().toISOString().split('T')[0], fruitSize: '', colorPct: '', estimatedYieldKg: '', numberOfCrates: '', qualityGrade: '', notes: '' },
+  ]);
+
+  const update = (idx: number, field: keyof ProductionEntry, val: string) => {
+    setEntries(prev => {
+      const updated = prev.map((e, i) => {
+        if (i !== idx) return e;
+        const next = { ...e, [field]: val };
+        if (field === 'estimatedYieldKg') {
+          next.numberOfCrates = calcCrates(val);
+        }
+        return next;
+      });
+      onProductionChange(updated);
+      return updated;
+    });
+  };
+
+  const addRow = () => {
+    setEntries(prev => {
+      const updated = [...prev, { date: new Date().toISOString().split('T')[0], fruitSize: '', colorPct: '', estimatedYieldKg: '', numberOfCrates: '', qualityGrade: '', notes: '' }];
+      onProductionChange(updated);
+      return updated;
+    });
+  };
+
+  const removeRow = (idx: number) => {
+    setEntries(prev => {
+      const updated = prev.filter((_, i) => i !== idx);
+      onProductionChange(updated);
+      return updated;
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-gray-500 font-medium">Record fruit production data observed on this tree.</p>
+      {entries.map((e, idx) => (
+        <div key={idx} className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-3 relative">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold text-indigo-700 uppercase tracking-wide">Record {idx + 1}</span>
+            {entries.length > 1 && (
+              <button onClick={() => removeRow(idx)} className="p-1 text-red-400 hover:text-red-600 rounded-lg transition">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Date</label>
+              <input type="date" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={e.date} onChange={ev => update(idx, 'date', ev.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Quality Grade</label>
+              <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                value={e.qualityGrade} onChange={ev => update(idx, 'qualityGrade', ev.target.value)}>
+                <option value="">Select grade…</option>
+                {QUALITY_GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Fruit Size (mm)</label>
+              <input type="number" min={0} placeholder="e.g. 65" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={e.fruitSize} onChange={ev => update(idx, 'fruitSize', ev.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Color (%)</label>
+              <input type="number" min={0} max={100} placeholder="e.g. 70" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={e.colorPct} onChange={ev => update(idx, 'colorPct', ev.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">Est. Yield (kg)</label>
+              <input type="number" min={0} step={0.1} placeholder="e.g. 12.5" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={e.estimatedYieldKg} onChange={ev => update(idx, 'estimatedYieldKg', ev.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1">No. of Crates <span className="text-gray-400 font-normal">(1 crate = 17 kg)</span></label>
+              <div className="relative">
+                <input type="text" readOnly
+                  placeholder="Auto-calculated"
+                  className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-sm bg-indigo-50 text-indigo-800 font-bold cursor-default focus:outline-none"
+                  value={e.numberOfCrates} />
+                {e.numberOfCrates && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-indigo-400 font-medium">crates</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 block mb-1">Notes</label>
+            <input type="text" placeholder="Optional notes…" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              value={e.notes} onChange={ev => update(idx, 'notes', ev.target.value)} />
+          </div>
+        </div>
+      ))}
+      <button onClick={addRow}
+        className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-300 hover:border-indigo-500 text-indigo-700 py-3 rounded-2xl text-sm font-bold transition bg-white hover:bg-indigo-50">
+        <Plus className="w-4 h-4" /> Add Production Record
+      </button>
+    </div>
+  );
+}
+
+type ScoutingFormTab = 'scouting' | 'activities' | 'production';
+
 function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, onSave, onClose, onUpdateTreeLocation }: ScoutingFormProps) {
   const [locationSaving, setLocationSaving] = useState(false);
   const [locationMsg, setLocationMsg]       = useState<string | null>(null);
+  const [activeTab, setActiveTab]           = useState<ScoutingFormTab>('scouting');
   const [bbchStage, setBbchStage]         = useState(51);
   const [bbchLabel, setBbchLabel]         = useState(BBCH_STAGES[1].label);
   const [pestIdx, setPestIdx]             = useState(0);
@@ -1362,6 +1744,10 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
   const [notes, setNotes]                 = useState('');
   const [prediction, setPrediction]       = useState<AIPrediction | null>(null);
   const [predicting, setPredicting]       = useState(false);
+  const [activities, setActivities]       = useState<ActivityEntry[]>([]);
+  const [production, setProduction]       = useState<ProductionEntry[]>([]);
+  const [assignedDoctor, setAssignedDoctor] = useState<OD_DoctorProfile | null>(null);
+  const [showDoctorPicker, setShowDoctorPicker] = useState(false);
   const photo = usePhotoCapture();
 
   const selectedPest = COMMON_PESTS[pestIdx];
@@ -1417,6 +1803,8 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
       treeHealthStatus:     prediction?.predictedHealth ?? (severity === 0 ? 'HEALTHY' : severity <= 2 ? 'STRESSED' : severity <= 4 ? 'INFECTED' : 'CRITICAL'),
       etlActionRecommended: prediction?.recommendation ?? 'NO_ACTION',
       aiPrediction:         prediction,
+      activities:           activities,
+      production:           production,
     };
     onSave(obs);
     onClose();
@@ -1425,6 +1813,13 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
   const canSave = pestName.trim().length > 0;
 
   return (
+    <>
+    {showDoctorPicker && (
+      <DoctorPickerModal
+        onSelect={(doctor) => { setAssignedDoctor(doctor); setShowDoctorPicker(false); }}
+        onClose={() => setShowDoctorPicker(false)}
+      />
+    )}
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm">
       {photo.inputEl}
       <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[96vh] flex flex-col">
@@ -1446,6 +1841,28 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
               <X className="w-4 h-4" />
             </button>
           </div>
+        </div>
+
+        {/* Slidable Tab Bar */}
+        <div className="shrink-0 bg-emerald-950 px-4 py-2 flex gap-1">
+          {([
+            { key: 'scouting',    label: 'Scouting',    icon: Bug         },
+            { key: 'activities',  label: 'Activities',  icon: Activity    },
+            { key: 'production',  label: 'Production',  icon: BarChart2   },
+          ] as { key: ScoutingFormTab; label: string; icon: any }[]).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === t.key
+                  ? 'bg-white text-emerald-900 shadow'
+                  : 'text-emerald-300 hover:bg-white/10'
+              }`}
+            >
+              <t.icon className="w-3.5 h-3.5" />
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Tree GPS info strip */}
@@ -1491,6 +1908,19 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
         )}
 
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
+
+          {/* ── Activities Tab ── */}
+          {activeTab === 'activities' && (
+            <ActivitiesForm onActivitiesChange={setActivities} />
+          )}
+
+          {/* ── Production Tab ── */}
+          {activeTab === 'production' && (
+            <ProductionForm onProductionChange={setProduction} />
+          )}
+
+          {/* ── Scouting Tab ── */}
+          {activeTab === 'scouting' && <>
 
           {/* BBCH Stage */}
           <div>
@@ -1647,6 +2077,46 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
             />
           </div>
 
+          {/* Assign Doctor */}
+          <div>
+            <label className="text-xs font-extrabold text-gray-500 uppercase tracking-widest block mb-2">Assigned Doctor</label>
+            {assignedDoctor ? (
+              <div className="flex items-center gap-3 bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
+                  <Stethoscope className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-extrabold text-gray-800 text-sm truncate">{assignedDoctor.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{assignedDoctor.specialization} · {assignedDoctor.hospitalName}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowDoctorPicker(true)}
+                    className="text-xs font-bold text-slate-600 underline hover:text-slate-900 transition"
+                  >
+                    Change
+                  </button>
+                  <button
+                    onClick={() => setAssignedDoctor(null)}
+                    className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowDoctorPicker(true)}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 hover:border-slate-500 text-slate-700 hover:text-slate-900 py-3.5 rounded-2xl text-sm font-bold transition bg-white hover:bg-slate-50"
+              >
+                <UserCheck className="w-4 h-4" />
+                Assign Orchard Doctor
+              </button>
+            )}
+          </div>
+
+          </> /* end scouting tab */}
+
         </div>
 
         {/* Footer */}
@@ -1664,6 +2134,7 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -1672,10 +2143,11 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
 ═══════════════════════════════════════════════════════════════ */
 
 function TreeHealthCard({
-  tree, snapshot, obsCount, selected, onClick,
+  tree, snapshot, obsCount, selected, onClick, serialNumber,
 }: {
   tree: TreeTag; snapshot: TreeHealthSnapshot | undefined;
   obsCount: number; selected: boolean; onClick: () => void;
+  serialNumber?: number;
 }) {
   const status = snapshot?.healthStatus ?? 'HEALTHY';
   const meta   = HEALTH_META[status];
@@ -1708,15 +2180,19 @@ function TreeHealthCard({
         )}
 
         <div className="relative z-10">
+          {/* Serial number badge */}
+          {serialNumber != null && (
+            <div className={`absolute top-0 left-0 w-6 h-6 flex items-center justify-center rounded-br-xl text-xs font-extrabold shadow ${hasBg ? 'bg-black/60 text-white' : 'bg-red-700 text-white'}`}>
+              {serialNumber}
+            </div>
+          )}
           <div className="flex items-start justify-between mb-2">
             <HealthRing status={status} size={44} />
             <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full border ${hasBg ? 'bg-black/50 text-white border-white/30' : `${meta.bg} ${meta.text} ${meta.border}`}`}>
               {meta.label}
             </span>
           </div>
-          <p className={`text-sm font-extrabold truncate mt-1 ${hasBg ? 'text-white drop-shadow' : 'text-gray-800'}`}>
-            {tree.name || `Tree #${tree.id.slice(0,6).toUpperCase()}`}
-          </p>
+          
           <p className={`text-xs truncate ${hasBg ? 'text-white/80' : 'text-gray-500'}`}>
             {tree.variety || 'Unknown variety'}
           </p>
@@ -2051,6 +2527,8 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
       treeHealthStatus: r.tree_health_status ?? 'HEALTHY',
       etlActionRecommended: r.etl_action_recommended ?? 'NO_ACTION',
       aiPrediction: r.ai_prediction ?? null,
+      activities: [],   // loaded separately from tree_scouting_activities if needed
+      production: [],   // loaded separately from tree_scouting_production if needed
     })));
   }, [selectedFieldId, userId]);
 
@@ -2103,6 +2581,8 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
         pest_count: o.pestCount, severity_score: o.severityScore, affected_part: o.affectedPart,
         notes: o.notes, gps_lat: o.gpsLat, gps_lng: o.gpsLng, gps_accuracy_m: o.gpsAccuracyM,
         ai_prediction: o.aiPrediction,
+        activities: o.activities ?? [],
+        production: o.production ?? [],
       }));
       const { data, error } = await supabase.rpc('batch_sync_scouting', { p_user_id: userId, p_observations: payload });
       if (error) throw error;
@@ -2367,97 +2847,81 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
               </div>
             </div>
 
-            {/* Tree grid */}
+            {/* Tree grid — grouped by row with serial numbers */}
             {treeTags.length === 0 && <EmptyState icon={TreePine} title="No trees tagged yet" sub="Tag trees using the Fields & Tree Mapping module first." />}
             {treeTags.length > 0 && filteredTrees.length === 0 && <EmptyState icon={Search} title="No trees match your search" />}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {filteredTrees.map(tree => (
-                <TreeHealthCard
-                  key={tree.id}
-                  tree={tree}
-                  snapshot={snapshots.find(s => s.treeTagId === tree.id)}
-                  obsCount={obsCountByTree[tree.id] ?? 0}
-                  selected={selectedTreeId === tree.id}
-                  onClick={() => setSelectedTreeId(prev => prev === tree.id ? null : tree.id)}
-                />
-              ))}
-            </div>
+            {treeTags.length > 0 && filteredTrees.length > 0 && (() => {
+              // Group by row number; trees with no row go under key 'null'
+              const rowMap: Map<number | null, TreeTag[]> = new Map();
+              // Compute serial number per row across full treeTags list (not filteredTrees)
+              // so serial numbers are stable even when search filter is active
+              const serialByTreeId: Record<string, number> = {};
+              const allRowMap: Map<number | null, TreeTag[]> = new Map();
+              for (const t of treeTags) {
+                const rk = t.rowNumber ?? null;
+                if (!allRowMap.has(rk)) allRowMap.set(rk, []);
+                allRowMap.get(rk)!.push(t);
+              }
+              allRowMap.forEach((trees, _row) => {
+                trees.forEach((t, idx) => { serialByTreeId[t.id] = idx + 1; });
+              });
 
-            {/* Expanded tree detail */}
-            {selectedTree && (
-              <SectionCard>
-                <div className="bg-gradient-to-r from-emerald-900 to-teal-800 px-5 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <HealthRing status={snapshots.find(s => s.treeTagId === selectedTree.id)?.healthStatus ?? 'HEALTHY'} size={48} />
-                    <div>
-                      <p className="text-white font-extrabold">{selectedTree.name || `Tree #${selectedTree.id.slice(0,6).toUpperCase()}`}</p>
-                      <p className="text-emerald-300 text-xs">{selectedTree.variety || 'Unknown'}{selectedTree.rowNumber ? ` · Row ${selectedTree.rowNumber}` : ''} · {selectedTree.latitude.toFixed(5)}, {selectedTree.longitude.toFixed(5)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setScoutingTree(selectedTree)}
-                      className="flex items-center gap-2 bg-white text-emerald-900 px-4 py-2.5 rounded-xl font-extrabold text-xs hover:bg-emerald-50 transition shadow"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Scout This Tree
-                    </button>
-                    <button onClick={() => setSelectedTreeId(null)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+              for (const t of filteredTrees) {
+                const rk = t.rowNumber ?? null;
+                if (!rowMap.has(rk)) rowMap.set(rk, []);
+                rowMap.get(rk)!.push(t);
+              }
 
-                <div className="p-5 space-y-4">
-                  {/* Tree Identity & GPS Editor */}
-                  <TreeLocationEditor
-                    tree={selectedTree}
-                    gps={gpsHook.gps}
-                    gpsState={gpsHook.state}
-                    userId={userId}
-                    onUpdated={(patch) => handleTreeUpdated(selectedTree.id, patch)}
-                  />
+              // Sort rows numerically; null rows at end
+              const sortedRows = Array.from(rowMap.keys()).sort((a, b) => {
+                if (a === null && b === null) return 0;
+                if (a === null) return 1;
+                if (b === null) return -1;
+                return a - b;
+              });
 
-                  {/* Quick stats */}
-                  {snapshots.find(s => s.treeTagId === selectedTree.id) && (() => {
-                    const snap = snapshots.find(s => s.treeTagId === selectedTree.id)!;
+              return (
+                <div className="space-y-6">
+                  {sortedRows.map(rowKey => {
+                    const rowTrees = rowMap.get(rowKey)!;
+                    const rowLabel = rowKey != null ? `Row ${rowKey}` : 'Unassigned Row';
+                    const rowTotal = allRowMap.get(rowKey)?.length ?? rowTrees.length;
                     return (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                          { label: 'Risk Score', value: `${snap.riskScore}/100`, color: snap.riskScore >= 65 ? 'text-red-600' : snap.riskScore >= 30 ? 'text-orange-500' : 'text-emerald-600' },
-                          { label: 'Total Obs.', value: snap.totalObservations, color: 'text-gray-700' },
-                          { label: 'Season Infections', value: snap.infectedCount, color: 'text-red-600' },
-                          { label: 'ETL Action', value: ETL_META[snap.etlAction].label, color: ETL_META[snap.etlAction].color },
-                        ].map(f => (
-                          <div key={f.label} className="bg-gray-50 rounded-xl p-3 text-xs">
-                            <p className="font-bold text-gray-400 uppercase mb-1">{f.label}</p>
-                            <p className={`font-extrabold text-sm ${f.color}`}>{String(f.value)}</p>
+                      <div key={String(rowKey)}>
+                        {/* Row header */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-2 bg-emerald-800 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">
+                            <TreePine className="w-3.5 h-3.5" />
+                            {rowLabel}
                           </div>
-                        ))}
+                          <div className="text-xs text-gray-400 font-semibold">{rowTotal} tree{rowTotal !== 1 ? 's' : ''} in row</div>
+                          <div className="flex-1 h-px bg-gray-200" />
+                        </div>
+                        {/* Trees in this row */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {rowTrees.map(tree => (
+                            <TreeHealthCard
+                              key={tree.id}
+                              tree={tree}
+                              snapshot={snapshots.find(s => s.treeTagId === tree.id)}
+                              obsCount={obsCountByTree[tree.id] ?? 0}
+                              selected={selectedTreeId === tree.id}
+                              serialNumber={serialByTreeId[tree.id]}
+                              onClick={() => {
+                                // Open scouting form immediately on click
+                                setSelectedTreeId(tree.id);
+                                setScoutingTree(tree);
+                              }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     );
-                  })()}
-
-                  {/* Observation history */}
-                  {selectedTreeObs.length === 0 ? (
-                    <div className="text-center py-10 border-2 border-dashed border-gray-100 rounded-2xl">
-                      <Bug className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-                      <p className="text-sm text-gray-400 font-semibold">No observations yet</p>
-                      <button onClick={() => setScoutingTree(selectedTree)} className="mt-3 flex items-center gap-2 bg-emerald-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold mx-auto">
-                        <Plus className="w-4 h-4" /> Start Scouting
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest">Scouting History</h3>
-                      {selectedTreeObs.map(obs => (
-                        <ObsCard key={obs.id} obs={obs} treeName={selectedTree.name || `Tree #${selectedTree.id.slice(0,6).toUpperCase()}`} />
-                      ))}
-                    </div>
-                  )}
+                  })}
                 </div>
-              </SectionCard>
-            )}
+              );
+            })()}
           </div>
         )}
 

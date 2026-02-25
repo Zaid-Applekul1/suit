@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Search,
   Satellite,
+  CalendarIcon,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -143,11 +144,9 @@ const SIDEBAR_STYLES = `
 const menuItems = [
   { path: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/fields',             icon: MapPin,           label: 'Fields' },
-  { path: '/finance',            icon: IndianRupee,      label: 'Accounting' },
-  { path: '/orchard-doctor',     icon: Stethoscope,      label: 'Orchard Doctor' },
-  { path: '/skuast-advisory',    icon: BookOpen,         label: 'SKUAST Advisory' },
-  { path: '/soil-test-advisory', icon: FlaskConical,     label: 'Lab-Test Advisory' },
+  { path: '/calendar',           icon: CalendarIcon,     label: 'Activity Calendar' },
   { path: '/tree-scouting',      icon: Search,           label: 'Tree Scouting' },
+  
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
@@ -248,3 +247,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 };
 
 export default Sidebar;
+{/* { path: '/fields',             icon: MapPin,           label: 'Fields' },
+  { path: '/finance',            icon: IndianRupee,      label: 'Finance' },
+  { path: '/orchard-doctor',     icon: Stethoscope,      label: 'Orchard Doctor' },
+  { path: '/skuast-advisory',    icon: BookOpen,         label: 'SKUAST Advisory' },
+  { path: '/soil-test-advisory', icon: FlaskConical,     label: 'Lab-Test' }, */}

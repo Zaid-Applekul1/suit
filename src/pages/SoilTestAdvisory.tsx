@@ -9,6 +9,7 @@ import {
 import Button from '../components/UI/Button';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 /* ══════════════════════════════════════════════════════════════════════════
    GLOBAL CSS
@@ -454,8 +455,11 @@ const StatPill: React.FC<{label:string; value:string|null; accent?:'green'|'blue
 ══════════════════════════════════════════════════════════════════════════ */
 const SoilTestAdvisory: React.FC = () => {
   const { session } = useAuth();
+  const location = useLocation();
 
-  const [mode,    setMode]    = useState<TestMode>('soil');
+  // Read ?tab=water from URL to open water tab directly (e.g. from Dashboard RAG orb)
+  const initialMode: TestMode = new URLSearchParams(location.search).get('tab') === 'water' ? 'water' : 'soil';
+  const [mode,    setMode]    = useState<TestMode>(initialMode);
   const [fields,  setFields]  = useState<Field[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);

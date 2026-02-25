@@ -274,6 +274,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const mapRef = useRef<HTMLDivElement>(null);
+  const taggedTreesSectionRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const boundaryPolygonsRef = useRef<Map<string, any>>(new Map());
   const treeMarkersRef = useRef<any[]>([]);
@@ -600,17 +601,39 @@ const Dashboard: React.FC = () => {
     loadTreeTags();
   }, [session?.user]);
 
-  /* ─── Activities loader ─── */
+  /* ─── Activities loader — reads from calendar_activities (Supabase) ─── */
   useEffect(() => {
     const loadActivities = async () => {
-      if (!session?.user) { setActivities([]); setActivityError(null); return; }
       setActivityError(null);
-      const { data, error } = await supabase.from('activities')
-        .select('id, title, created_at, kind').eq('user_id', session.user.id)
-        .order('created_at', { ascending: false }).limit(3);
+      if (!session?.user) { setActivities([]); return; }
+
+      const activityKindMap: Record<string, 'success' | 'warning' | 'info'> = {
+        tree_scouting: 'info',
+        soil_test: 'info',
+        water_test: 'info',
+        orchard_doctor: 'warning',
+        spray: 'warning',
+        irrigation: 'info',
+        pruning: 'success',
+        harvesting: 'success',
+        fertilizer: 'success',
+        other: 'info',
+      };
+
+      const { data, error } = await supabase
+        .from('calendar_activities')
+        .select('id, title, date, type, completed')
+        .eq('user_id', session.user.id)
+        .order('date', { ascending: false })
+        .limit(5);
+
       if (error) { setActivityError(error.message); return; }
+
       setActivities((data ?? []).map((row: any) => ({
-        id: row.id, title: row.title, createdAt: row.created_at, kind: row.kind ?? 'info',
+        id: row.id,
+        title: row.title,
+        createdAt: row.date + 'T00:00:00',
+        kind: row.completed ? 'success' : (activityKindMap[row.type] ?? 'info'),
       })));
     };
     loadActivities();
@@ -812,8 +835,8 @@ const Dashboard: React.FC = () => {
   const totalTrees = treeTags.length;
 
   const stats = [
-    { title: 'Total Fields', value: fields.length,            icon: '🌿', color: 'from-emerald-500 to-green-400',  delay: 'dash-d0', onClick: undefined },
-    { title: 'Total Trees',  value: totalTrees,                icon: '🌳', color: 'from-teal-500 to-emerald-400',  delay: 'dash-d1', onClick: undefined },
+    { title: 'Total Fields', value: fields.length,            icon: '🌿', color: 'from-emerald-500 to-green-400',  delay: 'dash-d0', onClick: () => navigate('/fields') },
+    { title: 'Total Trees',  value: totalTrees,                icon: '🌳', color: 'from-teal-500 to-emerald-400',  delay: 'dash-d1', onClick: () => taggedTreesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
     { title: 'Active Alerts',value: scoutingAlerts.length,     icon: '⚠️', color: 'from-orange-400 to-amber-400',  delay: 'dash-d2', onClick: () => navigate('/tree-scouting') },
     { title: 'Temperature',  value: weatherLoading ? '…' : (weather ? `${weather.temperature}°C` : (weatherError || 'N/A')), icon: '🌡️', color: 'from-violet-500 to-purple-400', delay: 'dash-d3', onClick: undefined },
   ];
@@ -907,7 +930,7 @@ const Dashboard: React.FC = () => {
               <p className="dash-stat-value text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 tabular-nums">{s.value}</p>
               <span className="text-[9px] sm:text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1 leading-tight text-center">{s.title}</span>
               {s.onClick && (
-                <span className="text-[9px] text-orange-400 font-semibold mt-1 tracking-wide">tap to view →</span>
+                <span className="text-[9px] text-orange-400 font-semibold mt-1 tracking-wide cursor-pointer">tap to view →</span>
               )}
             </div>
           ))}
@@ -926,24 +949,25 @@ const Dashboard: React.FC = () => {
 
           <div className="flex items-start justify-around gap-3 sm:gap-6">
             {[
-              { label: 'Soil',  status: soilStatus,  tooltip: soilTooltip,  icon: { green: CheckCircle, yellow: AlertCircle, red: XCircle, gray: HelpCircle }, emoji: '🌱' },
-              { label: 'Water', status: waterStatus, tooltip: waterTooltip, icon: { green: Droplet, yellow: Droplet, red: Droplet, gray: Droplet }, emoji: '💧' },
-            ].map(({ label, status, tooltip, icon, emoji }) => {
+              { label: 'Soil',  status: soilStatus,  tooltip: soilTooltip,  icon: { green: CheckCircle, yellow: AlertCircle, red: XCircle, gray: HelpCircle }, emoji: '🌱', href: '/soil-test-advisory' },
+              { label: 'Water', status: waterStatus, tooltip: waterTooltip, icon: { green: Droplet, yellow: Droplet, red: Droplet, gray: Droplet }, emoji: '💧', href: '/soil-test-advisory?tab=water' },
+            ].map(({ label, status, tooltip, icon, emoji, href }) => {
               const Icon = icon[status];
               const rc = ragColor[status];
               return (
-                <div key={label} className="flex flex-col items-center gap-2 flex-1">
+                <div key={label} className="flex flex-col items-center gap-2 flex-1 cursor-pointer group" onClick={() => navigate(href)}>
                   <div
-                    className={`dash-rag-orb w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-md ${rc.ring} ${rc.bg} relative`}
+                    className={`dash-rag-orb w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-md ${rc.ring} ${rc.bg} relative group-hover:scale-110 transition-transform`}
                     title={tooltip}
                   >
                     <Icon className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 ${rc.text}`} />
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="text-sm sm:text-base">{emoji}</span>
-                    <span className="text-xs sm:text-sm font-semibold text-gray-700">{label}</span>
+                    <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-emerald-600 transition-colors">{label}</span>
                   </div>
                   <span className="text-[10px] text-gray-400 text-center max-w-[6rem] leading-tight">{tooltip}</span>
+                  <span className="text-[9px] text-emerald-500 font-semibold tracking-wide">tap to view →</span>
                 </div>
               );
             })}
@@ -1046,7 +1070,7 @@ const Dashboard: React.FC = () => {
 
           {/* ── Tagged Trees chips ── */}
           {(selectedFieldId ? treeTags.filter(t => t.fieldId === selectedFieldId) : treeTags).length > 0 && (
-            <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
+            <div ref={taggedTreesSectionRef} className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
               <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest pb-1 border-b border-gray-100">Tagged Trees</h3>
               <div className="flex gap-2 overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {(selectedFieldId ? treeTags.filter(t => t.fieldId === selectedFieldId) : treeTags).map(tag => {

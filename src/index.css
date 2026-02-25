@@ -4,35 +4,25 @@
    GLOBAL MOBILE-FIRST BASE STYLES
    ===================================================== */
 
-/* 1. Prevent horizontal overflow on every device */
 html,
 body {
   overflow-x: hidden;
   width: 100%;
 }
 
-/* 2. Smooth, momentum-based scrolling on iOS */
 html {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-}
-
-/* 3. Viewport meta enforcement via CSS â€” ensures text
-      never scales up on iOS after orientation change */
-html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
-/* 4. Box-sizing reset (safe to apply globally) */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
-/* 5. Minimum touch-target size for all interactive elements
-      (WCAG 2.5.5 AA â€” 44Ã—44 px) */
 button,
 a,
 [role="button"],
@@ -43,7 +33,6 @@ label[for] {
   min-width: 44px;
 }
 
-/* 6. Prevent double-tap zoom on interactive elements (iOS) */
 button,
 a,
 input,
@@ -52,13 +41,11 @@ textarea {
   touch-action: manipulation;
 }
 
-/* 7. Remove default tap highlight on mobile WebKit */
 a,
 button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 8. Prevent long words / URLs from breaking layouts on small screens */
 p,
 h1, h2, h3, h4, h5, h6,
 li,
@@ -70,7 +57,6 @@ span {
   word-break: break-word;
 }
 
-/* 9. Make all images and media fluid by default */
 img,
 video,
 svg,
@@ -82,7 +68,6 @@ object {
   display: block;
 }
 
-/* 10. Scrollable tables / code blocks on small screens */
 table {
   width: 100%;
 }
@@ -100,44 +85,33 @@ code {
 }
 
 /* =====================================================
-   LAYOUT SHELL â€” sidebar + main content
-   The Layout component uses a sidebar on md+ and a
-   bottom-nav / drawer on mobile. These rules ensure
-   the page content area never escapes the viewport.
+   LAYOUT SHELL
    ===================================================== */
 
-/* Page wrapper set by Layout.tsx */
 #root {
-  min-height: 100dvh;          /* dynamic viewport height â€” handles iOS address bar */
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
 
-/* Main content area â€” pushed right by sidebar on md+,
-   full-width on mobile */
 .main-content {
   flex: 1;
-  min-width: 0;                 /* prevents flex children from overflowing */
+  min-width: 0;
   overflow-x: hidden;
 }
 
 /* =====================================================
-   BOTTOM NAVIGATION (mobile) â€” safe area for notched
-   phones (iPhone X+, Android cutout devices)
+   NAVIGATION
    ===================================================== */
+
 .bottom-nav {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* When a bottom-nav is present, add matching padding
-   to the page so content isn't hidden beneath it */
 .has-bottom-nav {
   padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* =====================================================
-   SIDEBAR (desktop) â€” fix position, full height
-   ===================================================== */
 .sidebar {
   position: fixed;
   top: 0;
@@ -149,93 +123,400 @@ code {
 }
 
 /* =====================================================
-   SCROLLABLE HORIZONTAL ROWS
-   (field chips, tree chips, weather cards, etc.)
+   SCROLL HELPERS
    ===================================================== */
+
 .scroll-x {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  /* hide scrollbar on WebKit but keep scroll behaviour */
-  scrollbar-width: none;        /* Firefox */
-  -ms-overflow-style: none;     /* IE / Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .scroll-x::-webkit-scrollbar {
   display: none;
 }
 
 /* =====================================================
-   MODAL / BOTTOM SHEET â€” safe-area aware
+   MODAL SAFE AREA
    ===================================================== */
+
 .modal-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* =====================================================
-   RESPONSIVE TYPOGRAPHY SCALE
-   Fluid type so headings don't overflow on phones
+   RESPONSIVE TYPE
    ===================================================== */
+
 @media (max-width: 639px) {
-  h1 { font-size: clamp(1.5rem,  5vw, 2rem);   }
+  h1 { font-size: clamp(1.5rem,  5vw, 2rem); }
   h2 { font-size: clamp(1.25rem, 4vw, 1.5rem); }
-  h3 { font-size: clamp(1rem,    3vw, 1.25rem);}
+  h3 { font-size: clamp(1rem,    3vw, 1.25rem); }
 }
 
 /* =====================================================
-   INPUT / FORM ACCESSIBILITY ON MOBILE
-   iOS zooms in when font-size < 16px on focused inputs
+   INPUT FIX (iOS)
    ===================================================== */
+
 input,
 textarea,
 select {
-  font-size: 16px;              /* prevents iOS auto-zoom */
+  font-size: 16px;
 }
 
 @media (min-width: 640px) {
   input,
   textarea,
   select {
-    font-size: inherit;         /* restore normal size on larger screens */
+    font-size: inherit;
   }
 }
 
 /* =====================================================
-   LOADING SPINNER (App.tsx RequireAuth state)
+   LOADER BACKGROUND
    ===================================================== */
-.app-loading-inner {
+
+.app-loading {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #f0fdf4 0%, #dcfce7 40%, #ecfdf5 70%, #f0fdf4 100%);
+  padding: 1rem;
+}
+
+/* =====================================================
+   ðŸŒ¾ FARM LOADER SCENE
+   ===================================================== */
+
+.loader-stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  text-align: center;
+  gap: 0;
 }
 
-.tractor-wrapper {
-  width: 240px;
+.road-scene {
+  position: relative;
+  width: min(380px, 94vw);
+  height: 200px;
+  border-radius: 22px;
   overflow: hidden;
+  /* Sky â†’ field gradient */
+  background: linear-gradient(
+    to bottom,
+    #bae6fd 0%,
+    #7dd3fc 28%,
+    #86efac 46%,
+    #4ade80 62%,
+    #16a34a 80%,
+    #15803d 100%
+  );
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.18),
+    0 4px 12px rgba(0,0,0,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.25);
 }
 
-.tractor {
-  display: inline-block;
-  font-size: 3rem;
-  animation: tractor-move 2s linear infinite;
+/* ðŸŒ™ NIGHT MODE */
+.app-loading.night .road-scene {
+  background: linear-gradient(
+    to bottom,
+    #020617 0%,
+    #0c1a3a 30%,
+    #052e16 58%,
+    #14532d 80%,
+    #052e16 100%
+  );
 }
 
-@keyframes tractor-move {
-  from {
-    transform: translateX(-120%);
-  }
-  to {
-    transform: translateX(240px);
-  }
+/* â”€â”€ Stars (night only) â”€â”€ */
+.app-loading.night .road-scene::after {
+  content: "âœ¦ âœ§ âœ¦ âœ§ âœ¦ âœ§ âœ¦";
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.5rem;
+  color: white;
+  letter-spacing: 8px;
+  opacity: 0.6;
+  animation: star-twinkle 2s ease-in-out infinite alternate;
 }
 
-@keyframes appSpin {
+@keyframes star-twinkle {
+  from { opacity: 0.3; }
+  to   { opacity: 0.8; }
+}
+
+/* â˜€ï¸ SUN */
+.sun {
+  position: absolute;
+  top: 14px;
+  right: 22px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fef08a, #fde047 50%, #facc15);
+  box-shadow:
+    0 0 0 6px rgba(253,224,71,0.15),
+    0 0 0 14px rgba(253,224,71,0.08),
+    0 0 30px rgba(253,224,71,0.6);
+  animation: sun-pulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes sun-pulse {
+  from { box-shadow: 0 0 0 6px rgba(253,224,71,0.15), 0 0 0 14px rgba(253,224,71,0.08), 0 0 30px rgba(253,224,71,0.5); }
+  to   { box-shadow: 0 0 0 8px rgba(253,224,71,0.20), 0 0 0 18px rgba(253,224,71,0.10), 0 0 45px rgba(253,224,71,0.8); }
+}
+
+/* ðŸŒ™ MOON */
+.app-loading.night .sun {
+  background: radial-gradient(circle at 38% 35%, #f3f4f6, #d1d5db 60%, #9ca3af);
+  box-shadow: 0 0 0 3px rgba(229,231,235,0.15), 0 0 22px rgba(229,231,235,0.4);
+  animation: none;
+}
+
+/* â˜ï¸ Clouds */
+.cloud {
+  position: absolute;
+  top: 10px;
+  font-size: 2.2rem;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));
+  animation: cloud-move 14s linear infinite;
+}
+
+.cloud.one { left: -50px; animation-delay: 0s;  top: 10px; font-size: 2rem; }
+.cloud.two { left: -90px; animation-delay: 5s;  top: 34px; font-size: 1.5rem; opacity: 0.65; }
+
+@keyframes cloud-move {
+  from { transform: translateX(0); }
+  to   { transform: translateX(480px); }
+}
+
+/* ðŸŒ³ Apple Trees */
+.tree {
+  position: absolute;
+  bottom: 52px;
+  font-size: 2.4rem;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));
+  animation: tree-sway 4s ease-in-out infinite alternate;
+}
+.tree.left  { left:  8px; animation-delay: 0s; }
+.tree.right { right: 8px; animation-delay: 1.5s; }
+
+@keyframes tree-sway {
+  from { transform: rotate(-1.5deg); transform-origin: bottom center; }
+  to   { transform: rotate(1.5deg);  transform-origin: bottom center; }
+}
+
+.tree.apple::after {
+  content: "ðŸŽ";
+  position: absolute;
+  top: -4px;
+  left: 10px;
+  font-size: 1rem;
+}
+
+/* ðŸŒ¾ Field strips */
+.field {
+  position: absolute;
+  bottom: 38px;
+  width: 100%;
+  height: 42%;
+  background: repeating-linear-gradient(
+    90deg,
+    #16a34a 0px,
+    #15803d 12px,
+    #166534 14px,
+    #14532d 26px,
+    #16a34a 28px
+  );
+  opacity: 0.6;
+}
+
+/* ðŸ›£ï¸ Road */
+.road {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 38px;
+  background: linear-gradient(to bottom, #475569, #334155);
+  overflow: hidden;
+  box-shadow: inset 0 3px 6px rgba(0,0,0,0.25);
+}
+
+/* Road edge lines */
+.road::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 0; right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.12);
+}
+
+/* Dashed centre line */
+.road-line {
+  position: absolute;
+  top: 48%;
+  left: -60px;
+  width: 50px;
+  height: 4px;
+  border-radius: 2px;
+  background: #facc15;
+  box-shadow: 0 0 6px rgba(250,204,21,0.5);
+  animation: road-move 0.55s linear infinite;
+}
+
+/* Second dash with offset */
+.road::after {
+  content: "";
+  position: absolute;
+  top: 48%;
+  left: -60px;
+  width: 50px;
+  height: 4px;
+  border-radius: 2px;
+  background: #facc15;
+  opacity: 0.6;
+  animation: road-move 0.55s linear infinite;
+  animation-delay: 0.27s;
+}
+
+@keyframes road-move {
+  from { left: -60px; }
+  to   { left: 110%; }
+}
+
+/* ðŸ’¨ Dust trail */
+.dust {
+  position: absolute;
+  bottom: 42px;
+  left: 48%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(203,213,225,0.8), transparent);
+  animation: dust-puff 0.45s ease-out infinite alternate;
+}
+
+@keyframes dust-puff {
+  from { transform: translateX(0)   scale(1);   opacity: 0.8; }
+  to   { transform: translateX(-16px) scale(2); opacity: 0;   }
+}
+
+/* ðŸšœ SVG Tractor */
+.tractor-svg {
+  position: absolute;
+  bottom: 18px;
+  left: -190px;
+  width: 175px;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.30));
+  animation: tractor-drive 3.6s linear infinite;
+}
+
+@keyframes tractor-drive {
+  from { transform: translateX(0); }
+  to   { transform: translateX(590px); }
+}
+
+/* ðŸšœ Wheel spin â€” correct per-wheel origins */
+.rear-wheel {
+  animation: wheel-spin 0.55s linear infinite;
+  transform-origin: 88px 92px;
+}
+.front-wheel {
+  animation: wheel-spin 0.55s linear infinite;
+  transform-origin: 168px 96px;
+}
+
+@keyframes wheel-spin {
   to { transform: rotate(360deg); }
 }
 
+/* ðŸ’¨ Exhaust smoke puffs */
+.smoke-puff {
+  animation: smoke-rise 1.2s ease-out infinite;
+}
+.puff1 { animation-delay: 0s;    }
+.puff2 { animation-delay: 0.4s;  }
+.puff3 { animation-delay: 0.8s;  }
+
+@keyframes smoke-rise {
+  0%   { opacity: 0.7; transform: translateY(0)    scale(1);   }
+  60%  { opacity: 0.3; transform: translateY(-8px)  scale(1.3); }
+  100% { opacity: 0;   transform: translateY(-16px) scale(1.8); }
+}
+
+/* ðŸ’¡ Headlights */
+.headlight {
+  opacity: 0.15;
+  animation: headlight-glow 1.2s ease-in-out infinite alternate;
+}
+
+.app-loading.night .headlight {
+  opacity: 1;
+}
+
+@keyframes headlight-glow {
+  from { opacity: 0.5; }
+  to   { opacity: 1;   }
+}
+
+/* ðŸŒ„ Subtle ambient overlay */
+.road-scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.08) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* ðŸ“ Loader text + progress bar */
+.loader-text {
+  margin-top: 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #166534;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-loading.night .loader-text {
+  color: #4ade80;
+}
+
+/* Animated progress bar under scene */
+.loader-stack::after {
+  content: "";
+  display: block;
+  width: min(380px, 94vw);
+  height: 3px;
+  border-radius: 0 0 22px 22px;
+  background: linear-gradient(90deg, #16a34a, #4ade80, #86efac, #4ade80, #16a34a);
+  background-size: 200% 100%;
+  animation: progress-sweep 1.8s linear infinite;
+  margin-top: -1px;
+  box-shadow: 0 2px 8px rgba(34,197,94,0.4);
+}
+
+@keyframes progress-sweep {
+  0%   { background-position: 0%   50%; }
+  100% { background-position: 200% 50%; }
+}
 /* =====================================================
-   PRINT â€” hide nav/sidebar, show content only
+   PRINT
    ===================================================== */
+
 @media print {
   .sidebar,
   .bottom-nav,
