@@ -201,15 +201,6 @@ select {
 /* =====================================================
    LOADING SPINNER (App.tsx RequireAuth state)
    ===================================================== */
-.app-loading {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(160deg, #f0fdf4 0%, #ecfdf5 40%, #f8fafc 100%);
-  padding: 1rem;
-}
-
 .app-loading-inner {
   display: flex;
   flex-direction: column;
@@ -218,13 +209,24 @@ select {
   text-align: center;
 }
 
-.app-loading-spinner {
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 3px solid #bbf7d0;
-  border-top-color: #16a34a;
-  border-radius: 50%;
-  animation: appSpin 0.8s linear infinite;
+.tractor-wrapper {
+  width: 240px;
+  overflow: hidden;
+}
+
+.tractor {
+  display: inline-block;
+  font-size: 3rem;
+  animation: tractor-move 2s linear infinite;
+}
+
+@keyframes tractor-move {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(240px);
+  }
 }
 
 @keyframes appSpin {

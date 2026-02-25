@@ -431,17 +431,41 @@ const Dashboard: React.FC = () => {
     return { fieldId: params.get('fieldId'), lat: params.get('lat'), lng: params.get('lng') };
   }
 
-  /* ─── Google Maps loader ─── */
+  /* ─── Google Maps lazy loader (loads only when map div enters viewport) ─── */
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
-    if (!apiKey) return;
-    if ((window as any).google?.maps) { setMapsLoaded(true); return; }
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,drawing`;
-    script.async = true; script.defer = true;
-    script.onload = () => setMapsLoaded(true);
-    document.head.appendChild(script);
-  }, []);
+    if (!apiKey || !mapRef.current) return;
+
+    const loadMaps = () => {
+      if ((window as any).google?.maps) { setMapsLoaded(true); return; }
+      // Avoid duplicate script tags; reuse one created by Fields or OrchardDoctor
+      const existing = document.querySelector('script[data-google-maps]');
+      if (existing) {
+        existing.addEventListener('load', () => setMapsLoaded(true));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,drawing`;
+      script.async = true; script.defer = true;
+      script.dataset.googleMaps = 'true';
+      script.onload = () => setMapsLoaded(true);
+      document.head.appendChild(script);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMaps();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  // Re-run when fields load so mapRef.current is attached to the DOM
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.length]);
 
   /* ─── Fields loader ─── */
   useEffect(() => {

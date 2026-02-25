@@ -275,16 +275,21 @@ function OrchardMapModal({
   const [mapsReady, setMapsReady] = useState(() => !!(window as any).google?.maps);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // Load Google Maps SDK if not already present
+  // Load Google Maps SDK if not already present (lazy — only runs when modal mounts)
   useEffect(() => {
     if ((window as any).google?.maps) { setMapsReady(true); return; }
     const apiKey = (import.meta.env.VITE_GOOGLE_API_KEY as string | undefined) || '';
     if (!apiKey) { setMapError('Google Maps API key not configured.'); return; }
-    const existing = document.querySelector('script[data-gm]');
-    if (existing) { existing.addEventListener('load', () => setMapsReady(true)); return; }
+    // Reuse the shared script tag created by Dashboard or Fields to avoid duplicates
+    const existing = document.querySelector('script[data-google-maps]');
+    if (existing) {
+      if ((window as any).google?.maps) { setMapsReady(true); return; }
+      existing.addEventListener('load', () => setMapsReady(true));
+      return;
+    }
     const s = document.createElement('script');
     s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
-    s.async = true; s.defer = true; s.dataset.gm = '1';
+    s.async = true; s.defer = true; s.dataset.googleMaps = 'true';
     s.onload = () => setMapsReady(true);
     s.onerror = () => setMapError('Failed to load Google Maps.');
     document.head.appendChild(s);

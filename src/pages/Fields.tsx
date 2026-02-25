@@ -598,7 +598,12 @@ const Fields = () => {
     if (!wizardOpen || wizardStep !== 4 || mapsLoaded || mapsError) return;
     if (!apiKey) { setMapsError('Missing Google Maps API key.'); return; }
     const existing = document.querySelector('script[data-google-maps]');
-    if (existing) { if ((window as any).google?.maps) setMapsLoaded(true); return; }
+    if (existing) {
+      if ((window as any).google?.maps) { setMapsLoaded(true); return; }
+      // Script tag exists but hasn't finished loading yet — wait for it
+      existing.addEventListener('load', () => setMapsLoaded(true));
+      return;
+    }
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry`;
     script.async = true; script.defer = true; script.dataset.googleMaps = 'true';

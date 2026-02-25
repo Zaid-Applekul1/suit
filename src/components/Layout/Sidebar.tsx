@@ -143,10 +143,10 @@ const SIDEBAR_STYLES = `
 const menuItems = [
   { path: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/fields',             icon: MapPin,           label: 'Fields' },
-  { path: '/finance',            icon: IndianRupee,      label: 'Financial Ledger' },
+  { path: '/finance',            icon: IndianRupee,      label: 'Accounting' },
   { path: '/orchard-doctor',     icon: Stethoscope,      label: 'Orchard Doctor' },
   { path: '/skuast-advisory',    icon: BookOpen,         label: 'SKUAST Advisory' },
-  { path: '/soil-test-advisory', icon: FlaskConical,     label: 'Soil Test Advisory' },
+  { path: '/soil-test-advisory', icon: FlaskConical,     label: 'Lab-Test Advisory' },
   { path: '/tree-scouting',      icon: Search,           label: 'Tree Scouting' },
 ];
 
