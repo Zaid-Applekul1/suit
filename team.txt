@@ -1,0 +1,559 @@
+
+
+# Team Management System - Complete Guide
+
+## Overview
+
+The Team Management System allows orchard owners (growers) to invite and manage team members (managers and workers) to help operate their orchard business. Team members can be granted different levels of access to view, edit, and manage field data.
+
+---
+
+## Features
+
+### 1. **Team Invitations**
+- Send email invitations to managers and workers
+- Set role (Manager or Worker)
+- Configure permissions (View, Edit, Full Access)
+- Add personal messages to invitations
+- 7-day expiration for security
+- Cancel pending invitations
+
+### 2. **Team Member Management**
+- View all active team members
+- Update member permissions in real-time
+- Remove team members from the team
+- Track when members joined
+- See member contact information
+
+### 3. **Role-Based Access Control (RBAC)**
+- **Owner**: Original account holder with full control
+- **Manager**: Can view/edit data and manage workers
+- **Worker**: Can view data and perform basic tasks
+
+### 4. **Permission Levels**
+- **View Only** (ðŸ‘ï¸): Read-only access to data
+- **Can Edit** (âœï¸): Can view and modify data
+- **Full Access** (ðŸ”‘): Complete control including management
+
+### 5. **Field-Level Access Control**
+- Grant access to specific fields
+- Control what team members can do:
+  - View field data
+  - Edit field information
+  - Delete fields
+  - Manage trees
+
+---
+
+## Database Schema
+
+### Tables Created
+
+#### 1. `team_invitations`
+Tracks sent invitations to potential team members.
+
+**Columns:**
+- `id` - UUID primary key
+- `owner_id` - References auth.users (who sent the invitation)
+- `invitee_email` - Email address of the invitee
+- `invitee_phone` - Optional phone number
+- `role` - 'manager' or 'worker'
+- `permissions` - 'view', 'edit', or 'full'
+- `status` - 'pending', 'accepted', 'rejected', 'cancelled'
+- `invitation_token` - Unique token for the invitation link
+- `invited_at` - Timestamp when invited
+- `expires_at` - Expiration timestamp (7 days)
+- `accepted_at` - When invitation was accepted
+- `accepted_by` - User ID who accepted
+- `message` - Optional personal message
+
+#### 2. `team_members`
+Tracks active team members.
+
+**Columns:**
+- `id` - UUID primary key
+- `owner_id` - References auth.users (orchard owner)
+- `member_id` - References auth.users (team member)
+- `role` - 'owner', 'manager', or 'worker'
+- `permissions` - 'view', 'edit', or 'full'
+- `status` - 'active', 'suspended', or 'removed'
+- `invitation_id` - Links to original invitation
+- `joined_at` - When member joined
+- `last_active_at` - Last activity timestamp
+
+#### 3. `team_field_access`
+Granular field-level permissions.
+
+**Columns:**
+- `id` - UUID primary key
+- `team_member_id` - References team_members
+- `field_id` - References fields
+- `can_view` - Boolean (can view field)
+- `can_edit` - Boolean (can edit field)
+- `can_delete` - Boolean (can delete field)
+- `can_manage_trees` - Boolean (can tag/edit trees)
+- `granted_at` - When access was granted
+- `granted_by` - Who granted the access
+
+---
+
+## Installation Instructions
+
+### Step 1: Apply Database Migration
+
+Run the SQL migration in Supabase SQL Editor:
+
+```bash
+# In Supabase Dashboard â†’ SQL Editor â†’ New Query
+# Paste contents of: 20260226_team_management.sql
+# Click "Run"
+```
+
+**IMPORTANT**: Make sure you've already applied the base schema migration before running this.
+
+### Step 2: Add Components to Your App
+
+1. **Add TeamManagement Component**
+```tsx
+// In your app's routes or navigation
+import TeamManagement from './components/TeamManagement';
+
+// Add to routes
+<Route path="/team" element={<TeamManagement />} />
+```
+
+2. **Add AcceptInvitation Page**
+```tsx
+// Public route for accepting invitations
+import AcceptInvitation from './pages/AcceptInvitation';
+
+<Route path="/accept-invitation" element={<AcceptInvitation />} />
+```
+
+3. **Add to Profile Page (Optional)**
+```tsx
+// In Profile.tsx, add a tab or section:
+import TeamManagement from './TeamManagement';
+
+// Inside Profile component:
+{userRole === 'Grower' && (
+  <div className="mt-8">
+    <TeamManagement />
+  </div>
+)}
+```
+
+### Step 3: Set Up Email Notifications (Optional but Recommended)
+
+You'll need to send emails when invitations are created. Options:
+
+#### Option A: Supabase Edge Function
+```typescript
+// supabase/functions/send-team-invitation/index.ts
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+serve(async (req) => {
+  const { inviteeEmail, ownerName, farmName, role, invitationToken } = await req.json()
+
+  const invitationLink = `${Deno.env.get('APP_URL')}/accept-invitation?token=${invitationToken}`
+
+  // Send email using Resend, SendGrid, etc.
+  // Example with Resend:
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`
+    },
+    body: JSON.stringify({
+      from: 'noreply@yourdomain.com',
+      to: inviteeEmail,
+      subject: `${ownerName} invited you to join their orchard team`,
+      html: `
+        <h2>You've been invited!</h2>
+        <p>${ownerName} has invited you to join ${farmName} as a ${role}.</p>
+        <a href="${invitationLink}">Accept Invitation</a>
+        <p>This invitation expires in 7 days.</p>
+      `
+    })
+  })
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json' }
+  })
+})
+```
+
+Deploy:
+```bash
+supabase functions deploy send-team-invitation
+```
+
+#### Option B: Client-Side Email Service
+Update `TeamManagement.tsx` after creating invitation:
+
+```typescript
+// After successful invitation creation
+await fetch('/api/send-invitation-email', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    inviteeEmail: data.invitee_email,
+    ownerName: user.name,
+    farmName: user.farmName,
+    role: data.role,
+    invitationToken: data.invitation_token
+  })
+});
+```
+
+---
+
+## User Workflows
+
+### For Owners (Growers)
+
+#### 1. Invite a Team Member
+
+1. Navigate to Team Management page
+2. Click "Invite Member" button
+3. Fill in the form:
+   - Email address (required)
+   - Phone number (optional)
+   - Role (Manager or Worker)
+   - Permissions (View, Edit, or Full)
+   - Personal message (optional)
+4. Click "Send Invitation"
+5. Invitation email is sent to the invitee
+
+#### 2. Manage Team Members
+
+1. View list of active team members
+2. Update permissions using dropdown:
+   - Change from "View Only" to "Can Edit"
+   - Grant "Full Access" for managers
+3. Remove members using trash icon
+4. Confirm removal when prompted
+
+#### 3. Manage Pending Invitations
+
+1. View all pending invitations
+2. See expiration dates
+3. Cancel invitations before acceptance
+4. Re-send invitations if needed (create new one)
+
+### For Invitees (Managers/Workers)
+
+#### 1. Receive Invitation
+
+1. Receive email with invitation link
+2. Click link to open invitation page
+3. Review invitation details:
+   - Who invited you
+   - Farm/orchard name
+   - Your role
+   - Your permissions
+   - Personal message
+
+#### 2. Accept or Reject
+
+**To Accept:**
+1. Log in with the invited email address
+2. Review details carefully
+3. Click "Accept Invitation"
+4. Automatically added to team
+5. Redirected to dashboard
+6. Can now access assigned fields
+
+**To Reject:**
+1. Click "Decline" button
+2. Confirm rejection
+3. Invitation marked as rejected
+4. Owner can see rejection status
+
+---
+
+## Security Features
+
+### 1. **Email Verification**
+- Invitations only work for the exact email address specified
+- Users must log in with matching email to accept
+- Prevents unauthorized access
+
+### 2. **Time-Limited Invitations**
+- Invitations expire after 7 days
+- Expired invitations cannot be accepted
+- Reduces security risk from old links
+
+### 3. **Unique Tokens**
+- Each invitation has a unique token
+- Tokens are cryptographically secure
+- Cannot be guessed or brute-forced
+
+### 4. **Row Level Security (RLS)**
+- All database operations secured by RLS policies
+- Owners can only manage their own team
+- Members can only see teams they belong to
+- Field access controlled at database level
+
+### 5. **Permission Validation**
+- Database functions validate all access
+- `user_has_field_access()` checks permissions
+- Prevents unauthorized data access
+
+---
+
+## API Reference
+
+### Database Functions
+
+#### `accept_team_invitation(_invitation_id, _user_id)`
+Accepts an invitation and creates team member record.
+
+**Parameters:**
+- `_invitation_id` (uuid) - Invitation ID
+- `_user_id` (uuid) - User accepting the invitation
+
+**Returns:** uuid (team_member_id)
+
+**Errors:**
+- Invitation not found or expired
+- Email does not match invitation
+- User already a team member
+
+**Example:**
+```typescript
+const { data, error } = await supabase.rpc('accept_team_invitation', {
+  _invitation_id: 'invitation-uuid',
+  _user_id: 'user-uuid'
+});
+```
+
+#### `user_has_field_access(_user_id, _field_id, _permission)`
+Checks if a user has access to a specific field.
+
+**Parameters:**
+- `_user_id` (uuid) - User to check
+- `_field_id` (uuid) - Field to check access for
+- `_permission` (text) - 'view', 'edit', or 'delete'
+
+**Returns:** boolean
+
+**Example:**
+```typescript
+const { data } = await supabase.rpc('user_has_field_access', {
+  _user_id: session.user.id,
+  _field_id: 'field-uuid',
+  _permission: 'edit'
+});
+
+if (data) {
+  // User can edit this field
+}
+```
+
+### Views
+
+#### `team_members_with_profiles`
+Shows team members with profile information.
+
+**Columns:**
+- All team_members columns
+- `member_name`, `member_email`, `member_phone`, `member_avatar`
+- `owner_name`, `owner_email`, `owner_farm_name`
+
+**Example:**
+```typescript
+const { data } = await supabase
+  .from('team_members_with_profiles')
+  .select('*')
+  .eq('owner_id', session.user.id);
+```
+
+#### `pending_team_invitations`
+Shows active pending invitations with owner details.
+
+**Columns:**
+- All team_invitations columns (where status='pending' and not expired)
+- `owner_name`, `owner_email`, `owner_farm_name`, `owner_avatar`
+
+**Example:**
+```typescript
+const { data } = await supabase
+  .from('pending_team_invitations')
+  .select('*')
+  .eq('invitee_email', user.email);
+```
+
+---
+
+## Customization Options
+
+### 1. **Custom Roles**
+Add more roles by updating the CHECK constraint:
+
+```sql
+ALTER TABLE team_members
+DROP CONSTRAINT team_members_role_check;
+
+ALTER TABLE team_members
+ADD CONSTRAINT team_members_role_check
+CHECK (role IN ('owner', 'manager', 'worker', 'supervisor', 'contractor'));
+```
+
+### 2. **Invitation Expiration**
+Change expiration time (default 7 days):
+
+```sql
+-- In team_invitations table
+expires_at timestamptz DEFAULT (now() + interval '14 days')  -- 14 days instead
+```
+
+Or in the invite form:
+```typescript
+expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+```
+
+### 3. **Custom Permissions**
+Add granular permissions:
+
+```sql
+ALTER TABLE team_field_access
+ADD COLUMN can_harvest boolean DEFAULT false,
+ADD COLUMN can_spray boolean DEFAULT false,
+ADD COLUMN can_prune boolean DEFAULT false;
+```
+
+### 4. **Notification Preferences**
+Add notification settings to team_members:
+
+```sql
+ALTER TABLE team_members
+ADD COLUMN notification_preferences jsonb DEFAULT '{
+  "email": true,
+  "sms": false,
+  "push": true
+}';
+```
+
+---
+
+## Troubleshooting
+
+### Issue: "Invitation not found or expired"
+
+**Solutions:**
+1. Check invitation was sent to correct email
+2. Verify invitation hasn't expired (7 days)
+3. Ensure invitation wasn't cancelled by owner
+4. Check database for invitation status
+
+### Issue: "Email does not match invitation"
+
+**Solutions:**
+1. Log out and sign in with invited email
+2. Create new account with invited email
+3. Owner should resend invitation to correct email
+
+### Issue: Team member can't see fields
+
+**Solutions:**
+1. Check permissions are set correctly
+2. Verify field access was granted
+3. Check RLS policies are enabled
+4. Review `team_field_access` table
+
+### Issue: Database function errors
+
+**Solutions:**
+1. Ensure migration was applied completely
+2. Check for missing helper functions
+3. Verify RLS is enabled on all tables
+4. Review Supabase logs for specific errors
+
+---
+
+## Best Practices
+
+### 1. **Security**
+- Never share invitation links publicly
+- Revoke access immediately when members leave
+- Regularly audit team member list
+- Use strong email validation
+- Enable 2FA for owner accounts
+
+### 2. **Team Management**
+- Start with "View Only" permissions
+- Grant "Edit" or "Full" access as needed
+- Use Manager role for supervisors
+- Document permission changes
+- Review team access quarterly
+
+### 3. **Invitations**
+- Include clear message about role expectations
+- Set expiration appropriate for your workflow
+- Re-send if invitation expires
+- Cancel unused invitations
+- Keep record of who was invited when
+
+### 4. **Data Organization**
+- Group fields by location or crop
+- Assign team members to relevant fields
+- Use consistent naming conventions
+- Document special access requirements
+
+---
+
+## Future Enhancements
+
+### Planned Features
+1. **Activity Logging** - Track team member actions
+2. **Bulk Invitations** - Invite multiple members at once
+3. **Template Roles** - Pre-defined permission sets
+4. **Field Groups** - Assign access to groups of fields
+5. **Mobile App** - Native invitation acceptance
+6. **SMS Invitations** - Text message invites
+7. **Team Calendar** - Shared scheduling
+8. **Performance Reports** - Team member analytics
+
+### Integration Ideas
+1. WhatsApp notifications
+2. Slack/Teams integration
+3. QR code invitations
+4. Biometric field access
+5. Geofencing for field access
+
+---
+
+## Support
+
+### Documentation
+- Database schema: `20260226_team_management.sql`
+- Component code: `TeamManagement.tsx`
+- Invitation page: `AcceptInvitation.tsx`
+- This guide: `TEAM_MANAGEMENT_GUIDE.md`
+
+### Common Questions
+
+**Q: Can I have multiple owners?**
+A: No, there's one owner per account. Use Manager role with Full permissions for admin-level access.
+
+**Q: How do I transfer ownership?**
+A: Currently not supported. Create new account and migrate data, or build custom transfer function.
+
+**Q: Can workers invite other workers?**
+A: No, only the owner can send invitations. Managers can be granted this ability with custom modifications.
+
+**Q: Is there a limit on team members?**
+A: No hard limit, but consider performance with 50+ members.
+
+**Q: Can I see which fields a member can access?**
+A: Yes, query `team_field_access` table filtered by `team_member_id`.
+
+---
+
+## License & Credits
+
+Built for AppleKulâ„¢ Orchard Management System
+Created: February 26, 2026
+Version: 1.0.0

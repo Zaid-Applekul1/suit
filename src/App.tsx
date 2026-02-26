@@ -13,6 +13,8 @@ import FinancialLedger from './pages/FinancialLedger';
 import OrchardDoctor from './pages/OrchardDoctor';
 import TreeScouting from './pages/TreeScouting';
 import Calendar from './pages/Calendar';
+import TeamManagement from './pages/TeamManagement';
+import AcceptInvitation from './pages/AcceptInvitation';  
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { session, loading } = useAuth();
@@ -261,6 +263,10 @@ function App() {
           <Route path="soil-test-advisory" element={<SoilTestAdvisory />} />
           <Route path="tree-scouting" element={<TreeScouting />} />
             <Route path="calendar" element={<Calendar />} />
+           <Route path="/teammanagement" element={<TeamManagement />} />
+<Route path="/accept-invitation" element={<AcceptInvitation />} />
+
+
         </Route>
       </Routes>
     </Router>

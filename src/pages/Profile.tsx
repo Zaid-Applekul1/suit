@@ -13,6 +13,7 @@ import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import TeamManagement from './TeamManagement';
 
 const PROFILE_STYLES = `
 @keyframes pfFadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
@@ -363,8 +364,16 @@ const Profile: React.FC = () => {
             </div>
           ))}
         </div>
+        
       </Card>
-    </div>
+        {/* Team Management (Grower only) */}
+        {userRole === 'Grower' && (
+          <div className="mt-8 pf-scale-in">
+            <TeamManagement />
+          </div>
+        )}
+
+      </div>
     </>
   );
 };

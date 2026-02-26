@@ -147,6 +147,7 @@ const menuItems = [
   { path: '/fields',             icon: MapPin,           label: 'Fields' },
   { path: '/calendar',           icon: CalendarIcon,     label: 'Activity Calendar' },
   { path: '/tree-scouting',      icon: TreePine,           label: 'Tree Scouting' },
+  { path: '/teammanagement',    icon: BookOpen,         label: 'Team Management' },
   
   
 ];
