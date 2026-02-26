@@ -685,7 +685,7 @@ const SoilTestAdvisory: React.FC = () => {
               {/* Left: title + stats */}
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-1 drop-shadow-xl">
-                  <span className="sk-leaf">🌱</span>{' '}
+                  <span className="sk-leaf"></span>{' '}
                   {mode==='soil' ? 'Soil Test Advisory' : 'Water Quality Advisory'}
                 </h1>
                 <p className="text-white/80 text-sm font-medium">Monitor nutrients · Detect deficiencies &amp; excesses</p>

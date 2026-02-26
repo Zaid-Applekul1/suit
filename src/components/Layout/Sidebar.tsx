@@ -12,6 +12,7 @@ import {
   Search,
   Satellite,
   CalendarIcon,
+  TreePine,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -145,7 +146,8 @@ const menuItems = [
   { path: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/fields',             icon: MapPin,           label: 'Fields' },
   { path: '/calendar',           icon: CalendarIcon,     label: 'Activity Calendar' },
-  { path: '/tree-scouting',      icon: Search,           label: 'Tree Scouting' },
+  { path: '/tree-scouting',      icon: TreePine,           label: 'Tree Scouting' },
+  
   
 ];
 
@@ -178,15 +180,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         role="navigation"
         aria-label="Main navigation"
       >
-        {/* Desktop logo (hidden on mobile — Navbar shows it there) */}
+      {/* Desktop logo (hidden on mobile — Navbar shows it there) 
         <div className="sb-logo">
           <img
             src="/logo.png"
             alt="AppleKul Logo"
             className="w-10 h-10 object-contain flex-shrink-0"
           />
-          <span className="text-base font-bold text-gray-900 leading-tight">AppleKul™</span>
-        </div>
+          <span className="text-base font-bold text-gray-900 leading-tight">AppleKul One</span>
+        </div> */}
 
         {/* Mobile header row */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 lg:hidden">

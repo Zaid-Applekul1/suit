@@ -774,7 +774,7 @@ export default function FinancialLedger() {
             Season 2025–2026 · Live
           </div>
           <h1 className="fld-fade-up fld-d2 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-            <span className="fld-leaf">💰</span> Financial Ledger
+            <span className="fld-leaf"></span> Financial Ledger
           </h1>
           <p className="fld-fade-up fld-d3 text-emerald-100/90 text-sm sm:text-base font-medium max-w-sm">
             Apple Orchard · Real-time profit &amp; expense tracking
@@ -808,7 +808,7 @@ export default function FinancialLedger() {
         <div className="fld-slide-r fld-d3 fld-summary-card">
           <SummaryCard label="Net Profit"     value={db.netProfit}
             color={db.netProfit >= 0 ? 'from-blue-600 to-blue-700' : 'from-orange-600 to-orange-700'}
-            icon={DollarSign} sub={`ROI ${roi.toFixed(1)}% · Cost/kg ₹${fmt(costPerKg)}`} />
+            icon={TrendingUp } sub={`ROI ${roi.toFixed(1)}% · Cost/kg ₹${fmt(costPerKg)}`} />
         </div>
       </div>
 

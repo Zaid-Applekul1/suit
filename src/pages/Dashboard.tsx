@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, TreePine, TriangleAlert as AlertTriangle, Cloud, TrendingUp, Calendar, UserCircle, CheckCircle2 } from 'lucide-react';
+import { MapPin, TreePine, TriangleAlert as AlertTriangle, Cloud, TrendingUp, Calendar, UserCircle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -284,7 +284,7 @@ const Dashboard: React.FC = () => {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
-  const [treeTags, setTreeTags] = useState<Array<{ id: string; fieldId: string; name: string; variety: string; latitude: number; longitude: number }>>([]);
+  const [treeTags, setTreeTags] = useState<Array<{ id: string; fieldId: string; name: string; variety: string; latitude: number; longitude: number; rowNumber: number | null }>>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [fieldsError, setFieldsError] = useState<string | null>(null);
   const [activities, setActivities] = useState<Array<{ id: string; title: string; createdAt: string; kind: 'success' | 'warning' | 'info' }>>([]);
@@ -318,6 +318,7 @@ const Dashboard: React.FC = () => {
     recentObs: Array<{ pestName: string; severityScore: number; notes: string; scoutedAt: string; affectedPart: string; }>;
   }>(null);
   const [scoutingModalLoading, setScoutingModalLoading] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const WIND_THRESHOLD = 15;
   const HIGH_TEMP = 32;
@@ -592,10 +593,11 @@ const Dashboard: React.FC = () => {
     const loadTreeTags = async () => {
       if (!session?.user) { setTreeTags([]); return; }
       const { data } = await supabase.from('tree_tags')
-        .select('id, field_id, name, variety, latitude, longitude').eq('user_id', session.user.id);
+        .select('id, field_id, name, variety, latitude, longitude, row_number').eq('user_id', session.user.id);
       setTreeTags((data ?? []).map((row: any) => ({
         id: row.id, fieldId: row.field_id, name: row.name ?? '',
         variety: row.variety ?? '', latitude: row.latitude, longitude: row.longitude,
+        rowNumber: row.row_number ?? null,
       })));
     };
     loadTreeTags();
@@ -692,12 +694,25 @@ const Dashboard: React.FC = () => {
       path.forEach(p => { bounds.extend(p); hasBounds = true; });
     });
 
+    // Build serial numbers per row (same logic as chip display)
+    const markerRowMap = new Map<number | null, typeof treeTags>();
+    for (const t of treeTags) {
+      const rk = t.rowNumber ?? null;
+      if (!markerRowMap.has(rk)) markerRowMap.set(rk, []);
+      markerRowMap.get(rk)!.push(t);
+    }
+    const markerSerialById: Record<string, number> = {};
+    markerRowMap.forEach(trees => {
+      trees.forEach((t, idx) => { markerSerialById[t.id] = idx + 1; });
+    });
+
     let treeIW: any = null;
     treeTags.forEach(tag => {
       if (!tag.latitude || !tag.longitude) return;
       const pos = { lat: tag.latitude, lng: tag.longitude };
       const color = getVarietyColor(tag.variety);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><circle cx="36" cy="27" r="22" fill="${color}" opacity="0.25"/><circle cx="36" cy="27" r="16" fill="${color}"/><rect x="32" y="40" width="8" height="18" rx="3" fill="#7c4d2b"/></svg>`;
+      const serial = markerSerialById[tag.id] ?? '';
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><circle cx="36" cy="27" r="22" fill="${color}" opacity="0.25"/><circle cx="36" cy="27" r="16" fill="${color}"/><rect x="32" y="40" width="8" height="18" rx="3" fill="#7c4d2b"/><text x="36" y="31" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="800" font-family="system-ui,sans-serif" fill="white">${serial}</text></svg>`;
       const marker = new googleMaps.maps.Marker({
         position: pos, map,
         title: tag.name || 'Tree',
@@ -744,14 +759,25 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (!treeMarkersRef.current.length) return;
+    // Recompute serials so SVG labels stay correct on re-render
+    const updRowMap = new Map<number | null, typeof treeTags>();
+    for (const t of treeTags) {
+      const rk = t.rowNumber ?? null;
+      if (!updRowMap.has(rk)) updRowMap.set(rk, []);
+      updRowMap.get(rk)!.push(t);
+    }
+    const updSerial: Record<string, number> = {};
+    updRowMap.forEach(trees => { trees.forEach((t, idx) => { updSerial[t.id] = idx + 1; }); });
+
     treeMarkersRef.current.forEach((marker: any) => {
       const tag = treeTags.find(t => t.name === marker.getTitle() || (marker.getPosition()?.lat() === t.latitude && marker.getPosition()?.lng() === t.longitude));
       if (!tag) return;
       const isSelected = tag.id === selectedTreeId;
       const color = getVarietyColor(tag.variety);
+      const serial = updSerial[tag.id] ?? '';
       const svg = isSelected
-        ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><circle cx="36" cy="27" r="26" fill="#fbbf24" opacity="0.4"/><circle cx="36" cy="27" r="22" fill="${color}" opacity="0.25"/><circle cx="36" cy="27" r="16" fill="${color}" stroke="#fbbf24" stroke-width="3"/><rect x="32" y="40" width="8" height="18" rx="3" fill="#7c4d2b"/></svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><circle cx="36" cy="27" r="22" fill="${color}" opacity="0.25"/><circle cx="36" cy="27" r="16" fill="${color}"/><rect x="32" y="40" width="8" height="18" rx="3" fill="#7c4d2b"/></svg>`;
+        ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><circle cx="36" cy="27" r="26" fill="#fbbf24" opacity="0.4"/><circle cx="36" cy="27" r="22" fill="${color}" opacity="0.25"/><circle cx="36" cy="27" r="16" fill="${color}" stroke="#fbbf24" stroke-width="3"/><rect x="32" y="40" width="8" height="18" rx="3" fill="#7c4d2b"/><text x="36" y="31" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="800" font-family="system-ui,sans-serif" fill="white">${serial}</text></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><circle cx="36" cy="27" r="22" fill="${color}" opacity="0.25"/><circle cx="36" cy="27" r="16" fill="${color}"/><rect x="32" y="40" width="8" height="18" rx="3" fill="#7c4d2b"/><text x="36" y="31" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="800" font-family="system-ui,sans-serif" fill="white">${serial}</text></svg>`;
       const googleMaps = (window as any).google;
       if (googleMaps?.maps) marker.setIcon({ url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`, scaledSize: new googleMaps.maps.Size(isSelected ? 44 : 36, isSelected ? 44 : 36), anchor: new googleMaps.maps.Point(isSelected ? 22 : 18, isSelected ? 44 : 36) });
       marker.setZIndex(isSelected ? 20 : 10);
@@ -895,7 +921,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <h1 className="dash-hero-title text-2xl sm:text-4xl md:text-5xl font-black text-white drop-shadow-lg tracking-tight leading-tight">
-              <span className="dash-leaf">🌿</span>{' '}
+              <span className="dash-leaf"></span>{' '}
               Orchard Dashboard
             </h1>
 
@@ -1069,49 +1095,151 @@ const Dashboard: React.FC = () => {
           )}
 
           {/* ── Tagged Trees chips ── */}
-          {(selectedFieldId ? treeTags.filter(t => t.fieldId === selectedFieldId) : treeTags).length > 0 && (
-            <div ref={taggedTreesSectionRef} className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
-              <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest pb-1 border-b border-gray-100">Tagged Trees</h3>
-              <div className="flex gap-2 overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-                {(selectedFieldId ? treeTags.filter(t => t.fieldId === selectedFieldId) : treeTags).map(tag => {
-                  const snap = treeHealthSnapshots.find(s => s.treeTagId === tag.id);
-                  const meta = snap ? getHealthStatusMeta(snap.healthStatus) : null;
-                  const isSelected = selectedTreeId === tag.id;
+          {(() => {
+            const visibleTags = (selectedFieldId ? treeTags.filter(t => t.fieldId === selectedFieldId) : treeTags);
+            if (visibleTags.length === 0) return null;
+
+            // Build serial numbers per-row exactly as TreeScouting does
+            // Group all tags (across all fields) by rowNumber, assign serial per row
+            const allTagsForSerial = treeTags;
+            const rowMap = new Map<number | null, typeof treeTags>();
+            for (const t of allTagsForSerial) {
+              const rk = t.rowNumber ?? null;
+              if (!rowMap.has(rk)) rowMap.set(rk, []);
+              rowMap.get(rk)!.push(t);
+            }
+            const serialByTreeId: Record<string, number> = {};
+            rowMap.forEach(trees => {
+              trees.forEach((t, idx) => { serialByTreeId[t.id] = idx + 1; });
+            });
+
+            // Sort visible tags: by rowNumber (nulls last), then by serial within row
+            const sortedTags = [...visibleTags].sort((a, b) => {
+              const ra = a.rowNumber ?? Infinity;
+              const rb = b.rowNumber ?? Infinity;
+              if (ra !== rb) return ra - rb;
+              return (serialByTreeId[a.id] ?? 0) - (serialByTreeId[b.id] ?? 0);
+            });
+
+            // Group sorted tags by rowNumber for display
+            const displayRowMap = new Map<number | null, typeof treeTags>();
+            for (const t of sortedTags) {
+              const rk = t.rowNumber ?? null;
+              if (!displayRowMap.has(rk)) displayRowMap.set(rk, []);
+              displayRowMap.get(rk)!.push(t);
+            }
+            const sortedRowKeys = Array.from(displayRowMap.keys()).sort((a, b) => {
+              if (a === null && b === null) return 0;
+              if (a === null) return 1;
+              if (b === null) return -1;
+              return a - b;
+            });
+
+            return (
+              <div ref={taggedTreesSectionRef} className="mt-3 sm:mt-4 space-y-2">
+                <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest pb-1 border-b border-gray-100">Tagged Trees</h3>
+                {sortedRowKeys.map(rowKey => {
+                  const rowTrees = displayRowMap.get(rowKey)!;
+                  const rowLabel = rowKey != null ? `Row ${rowKey}` : 'Unassigned';
+                  const rowKeyStr = String(rowKey);
+                  const isExpanded = expandedRows.has(rowKeyStr);
+                  const toggleRow = () => setExpandedRows(prev => {
+                    const next = new Set(prev);
+                    next.has(rowKeyStr) ? next.delete(rowKeyStr) : next.add(rowKeyStr);
+                    return next;
+                  });
+                  // count health statuses for summary
+                  const healthCounts = rowTrees.reduce<Record<string, number>>((acc, tag) => {
+                    const snap = treeHealthSnapshots.find(s => s.treeTagId === tag.id);
+                    const h = snap?.healthStatus ?? 'UNKNOWN';
+                    acc[h] = (acc[h] ?? 0) + 1;
+                    return acc;
+                  }, {});
                   return (
-                    <div
-                      key={tag.id}
-                      className={`dash-field-card shrink-0 w-36 sm:w-40 p-2 sm:p-2.5 rounded-xl cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-2 border-amber-400 bg-amber-50 shadow-md scale-105'
-                          : meta ? `${meta.border} border` : 'border border-gray-200'
-                      }`}
-                      onClick={() => { handleViewTree(tag); handleOpenScoutingModal(tag); }}
-                      title="Click to go to this tree on the map and view scouting details"
-                    >
-                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0" style={{ background: meta ? meta.dot : getVarietyColor(tag.variety) }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] sm:text-xs font-semibold text-gray-900 truncate">{tag.name || 'Tree'}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{tag.variety || 'Unknown variety'}</p>
+                    <div key={rowKeyStr} className="rounded-xl border border-gray-200 overflow-hidden">
+                      {/* Row header — clickable drill-down toggle */}
+                      <button
+                        onClick={toggleRow}
+                        className="w-full flex items-center justify-between px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                      >
+                        {/* left spacer for centering */}
+                        <span className="w-5" />
+                        {/* centered label + count */}
+                        <div className="flex items-center gap-2">
+                          <TreePine className="w-3.5 h-3.5 text-emerald-700" />
+                          <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-wide">{rowLabel}</span>
+                          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-200 rounded-full px-1.5 py-0.5">{rowTrees.length}</span>
+                          {/* mini health dots */}
+                          <div className="flex gap-1 ml-1">
+                            {Object.entries(healthCounts).map(([h, count]) => {
+                              const dotColor: Record<string, string> = { HEALTHY: '#22c55e', STRESSED: '#f59e0b', INFECTED: '#f97316', CRITICAL: '#ef4444', UNKNOWN: '#9ca3af' };
+                              return (
+                                <span key={h} className="flex items-center gap-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: dotColor[h] ?? '#9ca3af' }} />
+                                  <span className="text-[9px] text-gray-500">{count}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
-                        {isSelected && <span className="text-amber-500 text-xs shrink-0">📍</span>}
-                      </div>
-                      {snap ? (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${meta!.badge}`}>{meta!.label}</span>
-                          {snap.totalObservations > 0 && (
-                            <span className="text-[9px] text-gray-400">{snap.totalObservations} obs</span>
-                          )}
+                        {/* chevron */}
+                        {isExpanded
+                          ? <ChevronUp className="w-4 h-4 text-emerald-600" />
+                          : <ChevronDown className="w-4 h-4 text-emerald-600" />}
+                      </button>
+
+                      {/* Drill-down tree chips */}
+                      {isExpanded && (
+                        <div className="px-2 pt-2 pb-3 bg-white">
+                          <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            {rowTrees.map(tag => {
+                              const snap = treeHealthSnapshots.find(s => s.treeTagId === tag.id);
+                              const meta = snap ? getHealthStatusMeta(snap.healthStatus) : null;
+                              const isSelected = selectedTreeId === tag.id;
+                              const serial = serialByTreeId[tag.id];
+                              return (
+                                <div
+                                  key={tag.id}
+                                  className={`dash-field-card shrink-0 w-36 sm:w-40 p-2 sm:p-2.5 rounded-xl cursor-pointer transition-all ${
+                                    isSelected
+                                      ? 'border-2 border-amber-400 bg-amber-50 shadow-md scale-105'
+                                      : meta ? `${meta.border} border` : 'border border-gray-200'
+                                  }`}
+                                  onClick={() => { handleViewTree(tag); handleOpenScoutingModal(tag); }}
+                                  title="Click to go to this tree on the map and view scouting details"
+                                >
+                                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                                    <span className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-[9px] font-extrabold text-white" style={{ background: meta ? meta.dot : getVarietyColor(tag.variety) }}>
+                                      {serial ?? '?'}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[10px] sm:text-xs font-semibold text-gray-900 truncate">{tag.name || 'Tree'}</p>
+                                      <p className="text-[10px] text-gray-400 truncate">{tag.variety || 'Unknown variety'}</p>
+                                    </div>
+                                    {isSelected && <span className="text-amber-500 text-xs shrink-0">📍</span>}
+                                  </div>
+                                  {snap ? (
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${meta!.badge}`}>{meta!.label}</span>
+                                      {snap.totalObservations > 0 && (
+                                        <span className="text-[9px] text-gray-400">{snap.totalObservations} obs</span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[9px] text-gray-400">Tap to view on map</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      ) : (
-                        <span className="text-[9px] text-gray-400">Tap to view on map</span>
                       )}
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* ══════════════════════════════════════════
@@ -1335,16 +1463,92 @@ const Dashboard: React.FC = () => {
           <div className="dash-fade-up dash-d5 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="flex flex-col items-center text-center mb-3 sm:mb-4 gap-2">
               <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center text-lg sm:text-xl shadow-md">
-                📈
+                📊
               </div>
               <h3 className="text-base sm:text-lg font-extrabold text-gray-900">Production Overview</h3>
+              <p className="text-[10px] sm:text-xs text-gray-400">No. of trees vs infected vs severe</p>
             </div>
-            <div className="h-36 sm:h-44 bg-gray-50 rounded-xl flex items-center justify-center border border-dashed border-gray-200">
-              <div className="text-center">
-                <div className="text-3xl sm:text-4xl dash-float mb-2">📈</div>
-                <p className="text-xs sm:text-sm text-gray-400">Visualization coming soon</p>
+
+            {treeTags.length === 0 ? (
+              <div className="h-36 sm:h-44 bg-gray-50 rounded-xl flex flex-col items-center justify-center border border-dashed border-gray-200 gap-2">
+                <span className="text-3xl">🌿</span>
+                <p className="text-xs sm:text-sm text-gray-400">No tree data yet</p>
               </div>
-            </div>
+            ) : (() => {
+              const total        = treeTags.length;
+              const healthy      = treeHealthSnapshots.filter(s => s.healthStatus === 'HEALTHY').length;
+              const stressed     = treeHealthSnapshots.filter(s => s.healthStatus === 'STRESSED').length;
+              const infected     = treeHealthSnapshots.filter(s => s.healthStatus === 'INFECTED').length;
+              const critical     = treeHealthSnapshots.filter(s => s.healthStatus === 'CRITICAL').length;
+              const infAndSevere = infected + critical;
+
+              const bars: Array<{ label: string; count: number; color: string; shadow: string }> = [
+                { label: 'Total\nTrees',  count: total,        color: '#059669', shadow: 'rgba(5,150,105,0.35)'   },
+                { label: 'Healthy',       count: healthy,      color: '#22c55e', shadow: 'rgba(34,197,94,0.35)'   },
+                { label: 'Stressed',      count: stressed,     color: '#f59e0b', shadow: 'rgba(245,158,11,0.35)'  },
+                { label: 'Infected',      count: infected,     color: '#f97316', shadow: 'rgba(249,115,22,0.35)'  },
+                { label: 'Severe',        count: critical,     color: '#ef4444', shadow: 'rgba(239,68,68,0.35)'   },
+                { label: 'Inf+\nSevere',  count: infAndSevere, color: '#dc2626', shadow: 'rgba(220,38,38,0.35)'   },
+              ];
+              const maxCount = Math.max(...bars.map(b => b.count), 1);
+              const BAR_H    = 100; // max bar height px
+
+              const impactRate = total > 0 ? (infAndSevere / total) * 100 : 0;
+              const impactColor = impactRate >= 20 ? '#dc2626' : impactRate >= 10 ? '#f59e0b' : '#059669';
+
+              return (
+                <div className="space-y-3">
+                  {/* 6-bar chart */}
+                  <div className="flex items-end justify-between gap-1.5 pt-2" style={{ height: BAR_H + 52 }}>
+                    {bars.map(b => {
+                      const h   = Math.max(6, Math.round((b.count / maxCount) * BAR_H));
+                      const pct = total > 0 ? ((b.count / total) * 100).toFixed(0) : '0';
+                      return (
+                        <div key={b.label} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                          {/* count above bar */}
+                          <span className="text-[9px] sm:text-[10px] font-extrabold leading-none" style={{ color: b.color }}>
+                            {b.count}
+                          </span>
+                          {/* bar */}
+                          <div
+                            className="w-full rounded-t-lg transition-all duration-700"
+                            style={{
+                              height: h,
+                              background: `linear-gradient(to top, ${b.color}, ${b.color}aa)`,
+                              boxShadow: `0 3px 10px ${b.shadow}`,
+                            }}
+                          />
+                          {/* label */}
+                          <span className="text-[7px] sm:text-[8px] font-semibold text-gray-500 text-center leading-tight whitespace-pre-line mt-0.5">
+                            {b.label}
+                          </span>
+                          {/* % of total */}
+                          <span className="text-[7px] sm:text-[8px] text-gray-400">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Summary strip */}
+                  <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-gray-100 flex-wrap">
+                    {[
+                      { txt: `${total} Tagged`,                                                             col: '#059669' },
+                      { txt: `${infAndSevere} Inf+Severe`,                                                  col: infAndSevere > 0 ? '#dc2626' : '#059669' },
+                      { txt: `${impactRate.toFixed(1)}% Impact`,                                            col: impactColor },
+                    ].map(p => (
+                      <span key={p.txt} className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: p.col + '18', color: p.col, border: `1px solid ${p.col}33` }}>
+                        {p.txt}
+                      </span>
+                    ))}
+                    <button onClick={() => navigate('/tree-scouting')}
+                      className="text-[9px] sm:text-[10px] font-semibold text-teal-600 hover:underline ml-auto">
+                      View scouting →
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Growth Analytics */}
@@ -1585,7 +1789,15 @@ const Dashboard: React.FC = () => {
               {/* Modal actions */}
               <div className="flex gap-2 sm:gap-3">
                 <button
-                  onClick={() => { setScoutingModalTree(null); setSelectedTreeId(null); navigate('/tree-scouting'); }}
+                  onClick={() => {
+                    const tag = scoutingModalTree!.tag;
+                    const params = new URLSearchParams();
+                    if (tag.fieldId) params.set('fieldId', tag.fieldId);
+                    params.set('treeTagId', tag.id);
+                    setScoutingModalTree(null);
+                    setSelectedTreeId(null);
+                    navigate(`/tree-scouting?${params.toString()}`);
+                  }}
                   className="flex-1 py-2 sm:py-2.5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all"
                   style={{ background: 'linear-gradient(135deg, #0f766e, #059669)' }}
                 >

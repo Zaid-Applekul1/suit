@@ -248,7 +248,7 @@ const SkuastAdvisory: React.FC = () => {
 
             {/* Title */}
             <h1 className="sk-fade-up sk-d2 sk-hero-title-sm text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-              <span className="sk-leaf">🌿</span>{' '}
+              <span className="sk-leaf"></span>{' '}
               SKUAST Advisory
             </h1>
 

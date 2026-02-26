@@ -308,13 +308,13 @@ const Signup: React.FC = () => {
                 <img src="/logo.png" alt="AppleKul™" className="w-24 h-24 object-contain mx-auto" />
               </div>
               <div className="sg-fade-down sg-d0 text-lg font-extrabold tracking-wide mb-3" style={{ color: '#5a7a3a', fontFamily: 'Georgia, serif' }}>
-                AppleKul™ Suite
+                AppleKul One
               </div>
 
               <h1 className="sg-fade-up sg-d1 text-3xl font-extrabold text-gray-900 tracking-tight">
                 <span className="sg-leaf">🌿</span> Create Your Account
               </h1>
-              <p className="sg-fade-up sg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Join AppleKul™ Suite to manage your orchard</p>
+              <p className="sg-fade-up sg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Join AppleKul™ One to manage your orchard</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -562,8 +562,8 @@ const Signup: React.FC = () => {
             </div>
             <div className="space-y-3 text-sm">
               {[
-                { title: '1. Acceptance of Terms', body: 'By creating an account with AppleKul™ Suite, you agree to be bound by these Terms and Conditions.' },
-                { title: '2. Use of Service', body: 'AppleKul™ Suite provides orchard management tools and services for lawful purposes only.' },
+                { title: '1. Acceptance of Terms', body: 'By creating an account with AppleKul™ One, you agree to be bound by these Terms and Conditions.' },
+                { title: '2. Use of Service', body: 'AppleKul™ One provides orchard management tools and services for lawful purposes only.' },
                 { title: '3. User Account', body: 'You are responsible for maintaining the confidentiality of your account credentials.' },
                 { title: '4. Data Privacy', body: 'We collect and process your personal data in accordance with our Privacy Policy.' },
                 { title: '5. Contact Information', body: 'Questions? Contact us at apl@applekul.com' },

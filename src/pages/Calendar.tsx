@@ -796,7 +796,7 @@ const Calendar: React.FC<CalendarProps> = ({ onNavigate }) => {
             <div className="flex flex-wrap items-end justify-between gap-5">
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight drop-shadow-xl leading-tight">
-                  <span className="cal-leaf">🌿</span>{' '}Activity Calendar
+                  <span className="cal-leaf"></span>{' '}Calendar
                 </h1>
                 <p className="text-white/80 text-sm font-medium mt-1">Plan and track all orchard activities</p>
 

@@ -249,7 +249,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, user }) => {
                 alt="AppleKul Logo"
                 className="nav-logo-img"
               />
-              <h1 className="nav-title">AppleKul™ Suite</h1>
+              <h1 className="nav-title">AppleKul One</h1>
             </div>
           </div>
 

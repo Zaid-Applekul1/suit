@@ -422,7 +422,6 @@ const Fields = () => {
   const [pendingTagLocation, setPendingTagLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedTreeId, setSelectedTreeId]   = useState<string | null>(null);
   const [tagFormData, setTagFormData]         = useState({ name: '', variety: '', rowNumber: '' });
-  const [editingTreeId, setEditingTreeId]     = useState<string | null>(null);
 
   // All tree_tags from Supabase (keyed by field_id → list of tags)
   const [fieldTreeTags, setFieldTreeTags] = useState<Record<string, Array<{
@@ -624,16 +623,6 @@ const Fields = () => {
         : { lat: 33.7782, lng: 76.5762 });
     const map = new googleMaps.maps.Map(mapContainerRef.current, { center, zoom: 13, mapTypeId: 'satellite', mapTypeControl: true, mapTypeControlOptions: { position: googleMaps.maps.ControlPosition.TOP_LEFT, mapTypeIds: ['roadmap', 'satellite'] }, streetViewControl: false });
     mapInstanceRef.current = map;
-    // Auto-detect location on map load if no boundary or coordinates exist
-    if (!formData.boundaryPath?.length && !formData.latitude && !formData.longitude && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((p) => {
-        map.panTo({ lat: p.coords.latitude, lng: p.coords.longitude });
-        map.setZoom(16);
-        setFormData((prev) => ({ ...prev, latitude: p.coords.latitude, longitude: p.coords.longitude }));
-      }, (error) => {
-        console.log('Geolocation error:', error);
-      });
-    }
     // Fit map to saved field boundary on load
     if (formData.boundaryPath && formData.boundaryPath.length > 1) {
       const bounds = new googleMaps.maps.LatLngBounds();
@@ -647,11 +636,9 @@ const Fields = () => {
     const drawingManager = new googleMaps.maps.drawing.DrawingManager({ drawingMode: null, drawingControl: true, drawingControlOptions: { position: googleMaps.maps.ControlPosition.TOP_CENTER, drawingModes: ['polygon'] }, polygonOptions: { fillColor: '#059669', fillOpacity: 0.45, strokeColor: '#047857', strokeWeight: 3, editable: true } });
     drawingManager.setMap(map); drawingManagerRef.current = drawingManager;
     const autoDetectBtn = document.createElement('button');
-    autoDetectBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
-    autoDetectBtn.title = 'Detect My Location';
-    autoDetectBtn.className = 'bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer m-2.5';
-    autoDetectBtn.style.cssText = 'display:flex;align-items:center;justify-content:center;width:40px;height:40px;';
-    autoDetectBtn.onclick = () => { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition((p) => { map.panTo({ lat: p.coords.latitude, lng: p.coords.longitude }); map.setZoom(16); setFormData((prev) => ({ ...prev, latitude: p.coords.latitude, longitude: p.coords.longitude })); }); };
+    autoDetectBtn.textContent = 'Auto Detect';
+    autoDetectBtn.className = 'bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg shadow-md border border-gray-300 cursor-pointer m-2.5';
+    autoDetectBtn.onclick = () => { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition((p) => { map.panTo({ lat: p.coords.latitude, lng: p.coords.longitude }); map.setZoom(16); }); };
     map.controls[googleMaps.maps.ControlPosition.TOP_RIGHT].push(autoDetectBtn);
     let lineControlPanel: HTMLDivElement | null = document.getElementById('tree-line-panel') as HTMLDivElement;
     if (!lineControlPanel) {
@@ -773,34 +760,8 @@ const Fields = () => {
           });
 
           if (newTags.length > 0) {
-            const updatedTreeTags = [...currentFormData.treeTags, ...newTags];
-
-            // Update the row dropdown to mark fully tagged rows
-            setTimeout(() => {
-              const lineRowSelectEl = document.getElementById('line-row-select') as HTMLSelectElement;
-              if (lineRowSelectEl) {
-                // Rebuild dropdown options
-                lineRowSelectEl.innerHTML = '';
-                const defOpt = document.createElement('option');
-                defOpt.value = '';
-                defOpt.text = 'Row';
-                lineRowSelectEl.appendChild(defOpt);
-
-                currentFormData.rows.forEach((row) => {
-                  const nTrees = row.varieties.reduce((sum, v) => sum + (parseInt(v.trees) || 0), 0);
-                  const tagged = updatedTreeTags.filter((t) => t.rowNumber === row.rowId).length;
-                  const opt = document.createElement('option');
-                  opt.value = row.rowId;
-                  opt.text = `R${row.rowId}` + (tagged >= nTrees && nTrees > 0 ? ' ✓' : '');
-                  if (tagged >= nTrees && nTrees > 0) opt.disabled = true;
-                  lineRowSelectEl.appendChild(opt);
-                });
-                lineRowSelectEl.value = '';
-              }
-            }, 100);
-
             alert(`Auto-tagged ${newTags.length} trees inside the boundary!`);
-            return { ...currentFormData, treeTags: updatedTreeTags };
+            return { ...currentFormData, treeTags: [...currentFormData.treeTags, ...newTags] };
           } else {
             alert('No trees could be placed inside the boundary. Try adjusting your boundary or row configuration.');
             return currentFormData;
@@ -912,15 +873,10 @@ const Fields = () => {
         const scoutedDate = snap?.lastScoutedAt ? new Date(snap.lastScoutedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
         const lastPest = snap?.lastPestName || null;
 
-        // Create variety dropdown options - only show varieties filled in the form
-        const filledVarieties = new Set<string>();
-        formData.rows?.forEach(row => {
-          row.varieties?.forEach(v => {
-            if (v.variety) filledVarieties.add(v.variety);
-          });
-        });
-        const varietyOptions = Array.from(filledVarieties).map(varietyName =>
-          `<option value="${varietyName}" ${varietyName === tag.variety ? 'selected' : ''}>${varietyName}</option>`
+        // Create variety dropdown options
+        const availableVarieties = getAvailableVarieties();
+        const varietyOptions = availableVarieties.map(v =>
+          `<option value="${v.name}" ${v.name === tag.variety ? 'selected' : ''}>${v.name}</option>`
         ).join('');
 
         const varietySelectHtml = `
@@ -1071,7 +1027,7 @@ const Fields = () => {
 
             {/* Title */}
             <h1 className="fld-fade-up fld-d2 text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-              <span className="fld-leaf"></span>{' '}Orchards
+              <span className="fld-leaf">🌳</span>{' '}Orchards
             </h1>
 
             {/* Subtitle */}
@@ -1757,70 +1713,15 @@ const Fields = () => {
                         <div className="space-y-2 max-h-40 overflow-y-auto">
                           {formData.treeTags.map((tag) => (
                             <div key={tag.id}
-                              className={`flex items-center justify-between text-sm text-gray-700 p-2.5 rounded-xl transition-all ${selectedTreeId === tag.id ? 'bg-amber-50 border-2 border-amber-300' : 'hover:bg-gray-50 border-2 border-transparent'}`}>
-                              <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => handleGoToTree(tag)}>
+                              className={`flex items-center justify-between text-sm text-gray-700 p-2.5 rounded-xl cursor-pointer transition-all ${selectedTreeId === tag.id ? 'bg-amber-50 border-2 border-amber-300' : 'hover:bg-gray-50 border-2 border-transparent'}`}
+                              onClick={() => handleGoToTree(tag)}>
+                              <div className="flex items-center gap-2">
                                 <span className="inline-block h-3 w-3 rounded-full shadow-sm" style={{ backgroundColor: getVarietyColor(tag.variety) }} />
                                 <span className="font-semibold">{tag.name || 'Unnamed Tree'}</span>
                                 {tag.variety && <span className="text-xs text-gray-400">({tag.variety})</span>}
                                 {tag.rowNumber && <span className="text-xs text-gray-400">Row {tag.rowNumber}</span>}
                               </div>
-                              <div className="flex items-center gap-2">
-                                {editingTreeId === tag.id ? (
-                                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <select
-                                      value={tag.variety}
-                                      onChange={(e) => {
-                                        const newVariety = e.target.value;
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          treeTags: prev.treeTags.map(t =>
-                                            t.id === tag.id ? { ...t, variety: newVariety } : t
-                                          )
-                                        }));
-                                        setEditingTreeId(null);
-                                      }}
-                                      className="text-xs border border-green-300 rounded px-2 py-1 bg-white"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {(() => {
-                                        const filledVarieties = new Set<string>();
-                                        formData.rows?.forEach(row => {
-                                          row.varieties?.forEach(v => {
-                                            if (v.variety) filledVarieties.add(v.variety);
-                                          });
-                                        });
-                                        return Array.from(filledVarieties).map(varietyName => (
-                                          <option key={varietyName} value={varietyName}>{varietyName}</option>
-                                        ));
-                                      })()}
-                                    </select>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); setEditingTreeId(null); }}
-                                      className="text-xs text-gray-400 hover:text-gray-600"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); setEditingTreeId(tag.id); }}
-                                      className="text-xs text-blue-500 hover:text-blue-700 font-semibold"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleRemoveTreeTag(tag.id); }}
-                                      className="text-xs text-red-400 hover:text-red-600 font-semibold"
-                                    >
-                                      Remove
-                                    </button>
-                                  </>
-                                )}
-                              </div>
+                              <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveTreeTag(tag.id); }} className="text-xs text-red-400 hover:text-red-600 font-semibold">Remove</button>
                             </div>
                           ))}
                         </div>

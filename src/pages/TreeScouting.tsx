@@ -1,6 +1,6 @@
 /**
  * TreeScouting.tsx — Premium Edition v2
- * AppleKul™ Suite | Precision IPM
+ * AppleKul™ One | Precision IPM
  *
  * NEW in this version:
  *  • GPS-based nearest-tree auto-detection (Haversine distance)
@@ -2665,9 +2665,7 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
           <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
             <div className="flex items-center gap-4">
               {/* Animated logo icon */}
-              <div className="ts-glow ts-float relative p-3 bg-white/15 backdrop-blur-sm rounded-2xl border border-white/25 shadow-lg shrink-0">
-                <Bug className="w-7 h-7 text-emerald-300" />
-              </div>
+              
               <div>
                 {/* Live badge */}
                 <div className="ts-scale-in ts-d1 inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase mb-2">
@@ -2677,7 +2675,7 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
                 {/* Title */}
                 <div className="ts-fade-up ts-d2 flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-                    <span className="ts-leaf">🌿</span> Tree Scouting
+                    <span className="ts-leaf"></span> Tree Scouting
                   </h1>
                   <span className="text-xs font-bold bg-indigo-600/70 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-indigo-100 border border-indigo-400/50 flex items-center gap-1">
                     <Brain className="w-3 h-3" /> AI Powered

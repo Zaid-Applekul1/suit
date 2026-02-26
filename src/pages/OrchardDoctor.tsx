@@ -1169,7 +1169,7 @@ export default function OrchardDoctor({
 
           {/* Title */}
           <h1 className="od-fade-up od-d2 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-            <span className="od-leaf">🏥</span> Orchard Hospital
+            <span className="od-leaf"></span> Orchard Hospital
           </h1>
 
           {/* Subtitle */}
