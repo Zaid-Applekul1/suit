@@ -223,7 +223,7 @@ const Login: React.FC = () => {
               </div>
 
               <h1 className="lg-fade-up lg-d1 text-3xl font-extrabold text-gray-900 tracking-tight">
-                <span className="lg-leaf">🌿</span> Welcome Back
+                <span className="lg-leaf"></span> Welcome Back
               </h1>
               <p className="lg-fade-up lg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Sign in to manage your orchard</p>
             </div>

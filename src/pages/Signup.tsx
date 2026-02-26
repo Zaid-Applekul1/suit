@@ -312,7 +312,7 @@ const Signup: React.FC = () => {
               </div>
 
               <h1 className="sg-fade-up sg-d1 text-3xl font-extrabold text-gray-900 tracking-tight">
-                <span className="sg-leaf">🌿</span> Create Your Account
+                <span className="sg-leaf"></span> Create Your Account
               </h1>
               <p className="sg-fade-up sg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Join AppleKul™ One to manage your orchard</p>
             </div>
@@ -478,7 +478,7 @@ const Signup: React.FC = () => {
               )}
               {isGrower && (
                 <div className="sg-fade-up sg-role-banner flex items-start gap-3 rounded-2xl px-4 py-3.5 text-sm text-emerald-700">
-                  <span className="text-xl shrink-0">🌿</span>
+                  <span className="text-xl shrink-0"></span>
                   <div>
                     <p className="font-bold text-emerald-900">Registering as Grower</p>
                     <p className="text-xs mt-0.5 text-emerald-600">Full access to orchard management, map viewer, and doctor consultations.</p>
