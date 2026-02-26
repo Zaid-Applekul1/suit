@@ -1341,7 +1341,7 @@ const Fields = () => {
           <div className="fld-scale-in fld-glass-card rounded-3xl p-14 text-center border-2 border-dashed border-green-200">
             <div className="relative w-24 h-24 mx-auto mb-6">
               <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-inner fld-float">
-                <span className="text-5xl">🌳</span>
+                <span className="text-5xl"></span>
               </div>
               <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
                 <Plus className="w-4 h-4 text-white" />

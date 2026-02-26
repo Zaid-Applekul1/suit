@@ -2678,7 +2678,7 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
                     <span className="ts-leaf"></span> Tree Scouting
                   </h1>
                   <span className="text-xs font-bold bg-indigo-600/70 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-indigo-100 border border-indigo-400/50 flex items-center gap-1">
-                    <Brain className="w-3 h-3" /> AI Powered
+                    <Brain className="w-3 h-3" /> AI Powered Scouting Decisions
                   </span>
                 </div>
                 <p className="ts-fade-up ts-d3 text-emerald-200/90 text-xs mt-1 font-medium">

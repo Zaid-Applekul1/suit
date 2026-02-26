@@ -297,7 +297,7 @@ const Login: React.FC = () => {
                 <Link to="/signup" className="text-emerald-600 hover:text-emerald-800 font-bold transition-colors underline underline-offset-2">Sign Up</Link>
               </p>
               <p className="text-xs text-gray-400 font-medium">
-                Doctors are redirected to the Orchard Hospital portal automatically.
+                © 2026 AppleKul™. All rights reserved.
               </p>
             </div>
           </div>
