@@ -366,14 +366,15 @@ const Profile: React.FC = () => {
         </div>
         
       </Card>
-        {/* Team Management (Grower only) */}
-        {userRole === 'Grower' && (
-          <div className="mt-8 pf-scale-in">
-            <TeamManagement />
-          </div>
-        )}
 
-      </div>
+      {/* Team Management - Always Visible for Growers */}
+      {userRole === 'Grower' && (
+        <div className="pf-scale-in">
+          <TeamManagement />
+        </div>
+      )}
+
+    </div>
     </>
   );
 };

@@ -14,7 +14,10 @@ import OrchardDoctor from './pages/OrchardDoctor';
 import TreeScouting from './pages/TreeScouting';
 import Calendar from './pages/Calendar';
 import TeamManagement from './pages/TeamManagement';
-import AcceptInvitation from './pages/AcceptInvitation';  
+import AcceptInvitation from './pages/AcceptInvitation';
+import Pricing from './pages/Pricing';  
+import PaymentPage from './pages/PaymentPage';
+
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { session, loading } = useAuth();
@@ -232,8 +235,9 @@ const RequireAuth = ({ children }: { children: ReactNode }) => {
     </div>
   );
 }
-  if (!session) {
-    return <Navigate to="/login" replace />;
+    if (!session) {
+    // Unauthenticated users land on the pricing page first
+    return <Navigate to="/pricing" replace />;
   }
 
   return <>{children}</>;
@@ -243,6 +247,9 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Public landing — pricing card shown on first open */}
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/payment" element={<PaymentPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route

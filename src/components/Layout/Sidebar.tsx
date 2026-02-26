@@ -144,9 +144,10 @@ const SIDEBAR_STYLES = `
 
 const menuItems = [
   { path: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/fields',             icon: MapPin,           label: 'Fields' },
-  { path: '/calendar',           icon: CalendarIcon,     label: 'Activity Calendar' },
+  { path: '/fields',             icon: MapPin,           label: 'Orchard' },
+  { path: '/calendar',           icon: CalendarIcon,     label: 'Calendar' },
   { path: '/tree-scouting',      icon: TreePine,           label: 'Tree Scouting' },
+  { path: '/finance',            icon: IndianRupee,      label: 'Finance' },
   
   
   
