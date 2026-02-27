@@ -163,6 +163,9 @@ interface Activity {
   notes: string;
   completed: boolean;
   linkedModule?: string;
+  treeTagId?: string;
+  rowNumber?: number;
+  treeSerialNumber?: number;
 }
 
 interface ActivityTypeMeta {
@@ -559,6 +562,12 @@ const DayPanel: React.FC<DayPanelProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <Icon className={`w-3.5 h-3.5 shrink-0 ${meta.textColor}`} />
                       <span className={`text-[10px] font-bold uppercase tracking-wide ${meta.textColor}`}>{meta.label}</span>
+                      {act.treeSerialNumber != null && (
+                        <span className="text-[9px] font-bold bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                          Tree #{act.treeSerialNumber}
+                          {act.rowNumber != null && ` · Row ${act.rowNumber}`}
+                        </span>
+                      )}
                     </div>
                     <p className={`text-sm font-bold mt-0.5 ${act.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                       {act.title}
@@ -634,7 +643,7 @@ const Calendar: React.FC<CalendarProps> = ({ onNavigate }) => {
 
     const { data, error: err } = await supabase
       .from('calendar_activities')
-      .select('id, date, type, title, notes, completed, linked_module')
+      .select('id, date, type, title, notes, completed, linked_module, tree_tag_id, row_number, tree_serial_number')
       .eq('user_id', session.user.id)
       .gte('date', startDate)
       .lte('date', endDate)
@@ -650,6 +659,9 @@ const Calendar: React.FC<CalendarProps> = ({ onNavigate }) => {
       notes: row.notes ?? '',
       completed: row.completed ?? false,
       linkedModule: row.linked_module ?? undefined,
+      treeTagId: row.tree_tag_id ?? undefined,
+      rowNumber: row.row_number ?? undefined,
+      treeSerialNumber: row.tree_serial_number ?? undefined,
     })));
     setLoading(false);
   }, [session?.user, year, month]);

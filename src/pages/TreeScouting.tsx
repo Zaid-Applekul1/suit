@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { saveActivitiesToCalendar } from '../utils/TreeScoutingCalendarIntegration';
 
 /* ═══════════════════════════════════════════════════════════════
    SKUAST-STYLE ANIMATION & STYLE DEFINITIONS
@@ -1368,6 +1369,7 @@ interface ScoutingFormProps {
   onSave: (obs: ScoutingObservation) => void;
   onClose: () => void;
   onUpdateTreeLocation?: (lat: number, lng: number) => void;
+  serialNumber?: number;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1730,7 +1732,7 @@ function ProductionForm({ onProductionChange }: { onProductionChange: (p: Produc
 
 type ScoutingFormTab = 'scouting' | 'activities' | 'production';
 
-function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, onSave, onClose, onUpdateTreeLocation }: ScoutingFormProps) {
+function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, onSave, onClose, onUpdateTreeLocation, serialNumber }: ScoutingFormProps) {
   const [locationSaving, setLocationSaving] = useState(false);
   const [locationMsg, setLocationMsg]       = useState<string | null>(null);
   const [activeTab, setActiveTab]           = useState<ScoutingFormTab>('scouting');
@@ -1775,7 +1777,7 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
     return () => clearTimeout(t);
   }, [severity, pestIdx, pestCount, bbchStage, affectedPart, selectedPest.eppo, selectedPest.category, tree.variety, historicalSnapshot]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const obs: ScoutingObservation = {
       id:                   newUUID(),
       clientUuid:           newUUID(),
@@ -1806,7 +1808,23 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
       activities:           activities,
       production:           production,
     };
+
+    // Save observation first
     onSave(obs);
+
+    // Save activities to calendar (if any)
+    if (activities.length > 0) {
+      const treeContext = {
+        treeId: tree.id,
+        treeName: tree.name,
+        treeRowNumber: tree.rowNumber,
+        treeSerialNumber: serialNumber || 1,
+        fieldId: field.id,
+      };
+
+      await saveActivitiesToCalendar(userId, activities, treeContext);
+    }
+
     onClose();
   };
 
@@ -1831,8 +1849,20 @@ function ScoutingForm({ tree, field, gps, userId, userName, historicalSnapshot, 
               <Bug className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-white font-extrabold text-base">{tree.name || `Tree #${tree.id.slice(0,6).toUpperCase()}`}</p>
-              <p className="text-emerald-300 text-xs">{tree.variety || 'Unknown variety'} · {field.name}</p>
+              <div className="flex items-center gap-2">
+                {serialNumber != null && (
+                  <span className="bg-white/20 text-white text-xs font-extrabold px-2 py-0.5 rounded">
+                    #{serialNumber}
+                  </span>
+                )}
+                <p className="text-white font-extrabold text-base">
+                  {tree.name || `Tree #${tree.id.slice(0,6).toUpperCase()}`}
+                </p>
+              </div>
+              <p className="text-emerald-300 text-xs">
+                {tree.variety || 'Unknown variety'} · {field.name}
+                {tree.rowNumber != null && ` · Row ${tree.rowNumber}`}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -2633,6 +2663,21 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
   const openAlerts  = alerts.filter(a => a.alertStatus === 'OPEN');
   const blockAlerts = openAlerts.filter(a => a.alertLevel !== 'TREE');
 
+  // Compute serial number per tree (position in row)
+  const serialByTreeId = useMemo(() => {
+    const serial: Record<string, number> = {};
+    const allRowMap: Map<number | null, TreeTag[]> = new Map();
+    for (const t of treeTags) {
+      const rk = t.rowNumber ?? null;
+      if (!allRowMap.has(rk)) allRowMap.set(rk, []);
+      allRowMap.get(rk)!.push(t);
+    }
+    allRowMap.forEach((trees, _row) => {
+      trees.forEach((t, idx) => { serial[t.id] = idx + 1; });
+    });
+    return serial;
+  }, [treeTags]);
+
   /* ─── RENDER ──────────────────────────────────────────────── */
   return (
     <>
@@ -2647,6 +2692,7 @@ export default function TreeScouting({ fieldId: propFieldId }: TreeScoutingProps
           userId={userId}
           userName={userName}
           historicalSnapshot={snapshots.find(s => s.treeTagId === scoutingTree.id)}
+          serialNumber={serialByTreeId[scoutingTree.id]}
           onSave={handleSaveObs}
           onClose={() => setScoutingTree(null)}
           onUpdateTreeLocation={(lat, lng) => handleTreeUpdated(scoutingTree.id, { latitude: lat, longitude: lng })}

@@ -148,6 +148,9 @@ const menuItems = [
   { path: '/calendar',           icon: CalendarIcon,     label: 'Calendar' },
   { path: '/tree-scouting',      icon: TreePine,           label: 'Tree Scouting' },
   { path: '/finance',            icon: IndianRupee,      label: 'Finance' },
+  { path: '/orchard-doctor',     icon: Stethoscope,      label: 'Orchard Doctor' },
+  { path: '/skuast-advisory',    icon: BookOpen,         label: 'SKUAST Advisory' },
+  { path: '/soil-test-advisory', icon: FlaskConical,     label: 'Lab-Test' },
   
   
   
