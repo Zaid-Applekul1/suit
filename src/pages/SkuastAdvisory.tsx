@@ -2,118 +2,44 @@ import React, { useState } from 'react';
 import { skaustSprayTemplate2026Chemicals, skaustSprayTemplate2026Programs, skaustSprayTemplate2026ProgramItems } from '../data/skaustSprayTemplate2026';
 import { skaustActivityCalendar, skaustMonthNames } from '../data/skaustActivityCalendar';
 
-/* ─── Animation & Style Definitions ─── */
+/* ─── Professional Style Definitions ─── */
 const SKUAST_STYLES = `
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(24px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes fadeDown {
-  from { opacity:0; transform:translateY(-18px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes scaleIn {
-  from { opacity:0; transform:scale(0.90); }
-  to   { opacity:1; transform:scale(1); }
-}
-@keyframes slideRight {
-  from { opacity:0; transform:translateX(-20px); }
-  to   { opacity:1; transform:translateX(0); }
-}
-@keyframes slideLeft {
-  from { opacity:0; transform:translateX(20px); }
-  to   { opacity:1; transform:translateX(0); }
-}
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.25); }
-  50%       { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
-}
-@keyframes pulse-ring {
-  0%   { transform:scale(1);   opacity:0.8; }
-  100% { transform:scale(1.6); opacity:0; }
-}
-@keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-}
-@keyframes leafSway {
-  0%, 100% { transform: rotate(-4deg); }
-  50%       { transform: rotate(4deg); }
-}
-@keyframes headerGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.sk-fade-up    { animation: fadeUp     0.6s cubic-bezier(.22,1,.36,1) both; }
-.sk-fade-down  { animation: fadeDown   0.55s cubic-bezier(.22,1,.36,1) both; }
-.sk-scale-in   { animation: scaleIn    0.5s  cubic-bezier(.22,1,.36,1) both; }
-.sk-slide-r    { animation: slideRight 0.5s  cubic-bezier(.22,1,.36,1) both; }
-.sk-slide-l    { animation: slideLeft  0.5s  cubic-bezier(.22,1,.36,1) both; }
-.sk-glow       { animation: glow 2.8s ease-in-out infinite; }
-
-.sk-d0  { animation-delay:0s;    }
-.sk-d1  { animation-delay:.08s;  }
-.sk-d2  { animation-delay:.16s;  }
-.sk-d3  { animation-delay:.24s;  }
-.sk-d4  { animation-delay:.32s;  }
-.sk-d5  { animation-delay:.40s;  }
-.sk-d6  { animation-delay:.48s;  }
-.sk-d7  { animation-delay:.56s;  }
-
-/* Animated gradient header banner */
+/* Professional header banner */
 .sk-header-banner {
-  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981, #34d399, #6ee7b7, #10b981, #047857);
-  background-size: 300% 300%;
-  animation: headerGradient 8s ease infinite;
+  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981);
 }
 
 /* Month pill hover effects */
 .month-pill {
-  transition: transform .2s ease, background .2s ease, box-shadow .2s ease, color .2s ease;
+  transition: background .2s ease, color .2s ease;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   white-space: nowrap;
 }
-.month-pill::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
-  opacity: 0;
-  transition: opacity .2s ease;
-}
-.month-pill:hover::after { opacity: 1; }
 .month-pill:hover {
-  transform: translateY(-3px) scale(1.06);
-  box-shadow: 0 8px 24px rgba(34,197,94,0.22);
+  background: #f0fdf4;
+  border-color: #86efac;
 }
 .month-pill.active {
   background: linear-gradient(135deg, #15803d, #16a34a);
   color: white;
-  box-shadow: 0 6px 18px rgba(22,163,74,0.45);
 }
 
-/* Card hover */
+/* Card styling */
 .sk-card {
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  transition: border-color .2s ease;
 }
 .sk-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 36px rgba(34,197,94,0.14);
   border-color: #86efac;
 }
 
 /* Chemical row */
 .chem-row {
-  transition: background .18s ease, transform .18s ease, padding-left .18s ease;
+  transition: background .18s ease;
 }
 .chem-row:hover {
   background: linear-gradient(90deg, #f0fdf4, #dcfce7);
-  transform: translateX(4px);
-  padding-left: 1rem;
 }
 
 /* Table row */
@@ -124,36 +50,11 @@ const SKUAST_STYLES = `
 
 /* Activity card */
 .activity-card {
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  transition: border-color .2s ease;
   cursor: pointer;
 }
 .activity-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 10px 30px rgba(34,197,94,0.15);
-}
-
-/* Pulse indicator */
-.sk-pulse::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgba(34,197,94,0.5);
-  animation: pulse-ring 1.6s cubic-bezier(.215,.61,.355,1) infinite;
-}
-
-/* Leaf icon animation */
-.sk-leaf {
-  display: inline-block;
-  animation: leafSway 3s ease-in-out infinite;
-  transform-origin: bottom center;
-}
-
-/* Shimmer loading bar */
-.sk-shimmer {
-  background: linear-gradient(90deg, #f0fdf4 25%, #dcfce7 50%, #f0fdf4 75%);
-  background-size: 400px 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
+  border-color: #86efac;
 }
 
 /* ─── Responsive additions ─── */
@@ -232,43 +133,37 @@ const SkuastAdvisory: React.FC = () => {
       {/* Full-width responsive wrapper — no fixed widths, full bleed on mobile */}
       <div className="w-full max-w-screen-xl mx-auto space-y-5 sm:space-y-6 lg:space-y-8 pb-14 px-0">
 
-        {/* ── Hero banner ── */}
-        <div className="sk-fade-down sk-d0 relative overflow-hidden rounded-2xl sm:rounded-3xl sk-header-banner shadow-2xl">
-          {/* Decorative circles — hidden on phone to save space */}
-          <div className="hidden sm:block absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
-          <div className="hidden sm:block absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
-          <div className="hidden md:block absolute top-6 right-24 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
+        {/* ── Hero banner (compact) ── */}
+<div className="relative overflow-hidden rounded-xl sm:rounded-2xl sk-header-banner shadow-xl">
+  {/* Decorative circles */}
+  <div className="hidden sm:block absolute -top-6 -left-6 w-36 h-36 rounded-full bg-white/5 pointer-events-none" />
+  <div className="hidden sm:block absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-white/5 pointer-events-none" />
 
-          <div className="relative px-4 sm:px-8 lg:px-12 py-7 sm:py-10 flex flex-col items-center text-center gap-3 sm:gap-4">
-            {/* Badge */}
-            <div className="sk-scale-in sk-d1 inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-[11px] sm:text-xs font-bold text-white/90 tracking-widest uppercase">
-              <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 sk-pulse" />
-              Season 2026 · Live
-            </div>
+  <div className="relative px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col items-center text-center gap-2 sm:gap-3">
+    
+    
+    {/* Title */}
+    <h1 className="sk-hero-title-sm text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+       SKUAST Advisory
+    </h1>
 
-            {/* Title */}
-            <h1 className="sk-fade-up sk-d2 sk-hero-title-sm text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-              <span className="sk-leaf"></span>{' '}
-              SKUAST Advisory
-            </h1>
+    {/* Subtitle */}
+    <p className="text-[11px] sm:text-sm text-emerald-100/90 font-medium max-w-xs sm:max-w-lg">
+      Spray programs &amp; activity calendar · Tailored for Kashmir Apple Orchards
+    </p>
 
-            {/* Subtitle */}
-            <p className="sk-fade-up sk-d3 text-xs sm:text-sm md:text-base text-emerald-100/90 font-medium max-w-sm sm:max-w-xl">
-              Spray programs &amp; activity calendar · Tailored for Kashmir Apple Orchards
-            </p>
-
-            {/* Current month chip */}
-            <div className="sk-scale-in sk-d4 flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold text-white shadow-lg">
-              <svg className="w-4 h-4 text-emerald-300 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-              {skaustMonthNames[currentMonthIdx]} is the active month
-            </div>
+    {/* Current month chip */}
+    <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-bold text-white shadow-md">
+      <svg className="w-4 h-4 text-emerald-300 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      {skaustMonthNames[currentMonthIdx]} is the active month
+    </div>
           </div>
         </div>
 
         {/* ── Month selector ── */}
-        <div className="sk-fade-up sk-d1">
+        <div>
           <div className="bg-white border border-gray-100 rounded-2xl p-3 sm:p-4 md:p-5 shadow-sm">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">Browse by Month</p>
             {/* Horizontal-scroll on phone; wraps naturally on sm+ */}
@@ -297,11 +192,11 @@ const SkuastAdvisory: React.FC = () => {
 
         {/* ── Current Month Advisory ── */}
         {activeMonth && (
-          <div className="sk-scale-in sk-d2">
+          <div>
             <div className="sk-card bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm">
               {/* Card header */}
               <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5 md:mb-6">
-                <div className="sk-glow relative w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0 shadow-lg shadow-green-200">
+                <div className="relative w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0 shadow-lg shadow-green-200">
                   <span className="text-white text-base sm:text-lg md:text-xl font-extrabold">{activeMonthName.charAt(0)}</span>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -320,8 +215,7 @@ const SkuastAdvisory: React.FC = () => {
                 {activeMonth.activities.map((act, i) => (
                   <li
                     key={i}
-                    className="sk-slide-r flex items-start gap-2.5 sm:gap-3 p-2.5 sm:p-3 md:p-3.5 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 border border-gray-100 hover:border-green-200 transition-colors"
-                    style={{ animationDelay: `${i * 0.07}s` }}
+                    className="flex items-start gap-2.5 sm:gap-3 p-2.5 sm:p-3 md:p-3.5 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 border border-gray-100 hover:border-green-200 transition-colors"
                   >
                     <span className="w-2 h-2 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 mt-1.5 shrink-0 shadow shadow-green-200" />
                     <span className="text-xs sm:text-sm text-gray-700 leading-relaxed">{act}</span>
@@ -334,7 +228,7 @@ const SkuastAdvisory: React.FC = () => {
 
         {/* ── Spray Programs Grid ── */}
         {monthPrograms.length > 0 && (
-          <div className="sk-fade-up sk-d3">
+          <div>
             <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm">
               <div className="text-center mb-4 sm:mb-5 md:mb-6">
                 <h2 className="text-base sm:text-lg font-extrabold text-gray-900">Recommended Spray Treatments</h2>
@@ -347,8 +241,7 @@ const SkuastAdvisory: React.FC = () => {
                   return (
                     <div
                       key={pi}
-                      className="sk-card sk-scale-in border border-gray-100 rounded-2xl p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-green-50/20"
-                      style={{ animationDelay: `${pi * 0.09}s` }}
+                      className="sk-card border border-gray-100 rounded-2xl p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-green-50/20"
                     >
                       <div className="flex items-start gap-2.5 sm:gap-3 mb-3">
                         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0 shadow shadow-green-200">
@@ -387,7 +280,7 @@ const SkuastAdvisory: React.FC = () => {
         )}
 
         {/* ── All Spray Programs Table ── */}
-        <div className="sk-fade-up sk-d4">
+        <div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm">
             <div className="text-center mb-4 sm:mb-5 md:mb-6">
               <h2 className="text-base sm:text-lg font-extrabold text-gray-900">All Spray Programs</h2>
@@ -444,7 +337,7 @@ const SkuastAdvisory: React.FC = () => {
         </div>
 
         {/* ── Annual Activity Calendar ── */}
-        <div className="sk-fade-up sk-d5">
+        <div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm">
             <div className="text-center mb-4 sm:mb-5 md:mb-6">
               <h2 className="text-base sm:text-lg font-extrabold text-gray-900">Annual Activity Calendar</h2>
@@ -459,14 +352,13 @@ const SkuastAdvisory: React.FC = () => {
                 return (
                   <div
                     key={mi}
-                    className={`activity-card sk-scale-in rounded-2xl border-2 p-3 sm:p-4 ${
+                    className={`activity-card rounded-2xl border-2 p-3 sm:p-4 ${
                       isActive
                         ? 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md shadow-green-100'
                         : isCurrent
                           ? 'border-green-200 bg-green-50/50'
                           : 'border-gray-100 bg-gray-50/50 hover:border-green-200'
                     }`}
-                    style={{ animationDelay: `${mi * 0.04}s` }}
                     onClick={() => setActiveMonthIdx(monthData.month - 1)}
                   >
                     <div className="flex items-center gap-2 sm:gap-2.5 mb-2.5 sm:mb-3">

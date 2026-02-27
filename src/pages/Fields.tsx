@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { kml as kmlToGeoJSON } from '@tmcw/togeojson';
@@ -9,71 +8,12 @@ import type { Field } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-/* ─── SkuastAdvisory-style Glass + Animation CSS ─── */
+/* ─── SkuastAdvisory-style Professional Glass CSS (No Animations) ─── */
 const FIELDS_STYLES = `
-@keyframes fldFadeUp {
-  from { opacity:0; transform:translateY(24px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes fldFadeDown {
-  from { opacity:0; transform:translateY(-18px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes fldScaleIn {
-  from { opacity:0; transform:scale(0.90); }
-  to   { opacity:1; transform:scale(1); }
-}
-@keyframes fldSlideRight {
-  from { opacity:0; transform:translateX(-20px); }
-  to   { opacity:1; transform:translateX(0); }
-}
-@keyframes fldGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.25); }
-  50%       { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
-}
-@keyframes fldPulseRing {
-  0%   { transform:scale(1);   opacity:0.8; }
-  100% { transform:scale(1.7); opacity:0; }
-}
-@keyframes fldShimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position:  400px 0; }
-}
-@keyframes fldLeafSway {
-  0%, 100% { transform: rotate(-4deg); }
-  50%       { transform: rotate(4deg); }
-}
-@keyframes fldHeaderGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes fldFloat {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
-}
 
-.fld-fade-up   { animation: fldFadeUp     0.6s cubic-bezier(.22,1,.36,1) both; }
-.fld-fade-down { animation: fldFadeDown   0.55s cubic-bezier(.22,1,.36,1) both; }
-.fld-scale-in  { animation: fldScaleIn    0.5s  cubic-bezier(.22,1,.36,1) both; }
-.fld-slide-r   { animation: fldSlideRight 0.5s  cubic-bezier(.22,1,.36,1) both; }
-.fld-glow      { animation: fldGlow 2.8s ease-in-out infinite; }
-.fld-float     { animation: fldFloat 3.5s ease-in-out infinite; }
-
-.fld-d0  { animation-delay:0s;    }
-.fld-d1  { animation-delay:.08s;  }
-.fld-d2  { animation-delay:.16s;  }
-.fld-d3  { animation-delay:.24s;  }
-.fld-d4  { animation-delay:.32s;  }
-.fld-d5  { animation-delay:.40s;  }
-.fld-d6  { animation-delay:.48s;  }
-.fld-d7  { animation-delay:.56s;  }
-
-/* Animated gradient header banner — identical to SkuastAdvisory */
+/* Professional gradient header banner — identical to SkuastAdvisory */
 .fld-header-banner {
-  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981, #34d399, #6ee7b7, #10b981, #047857);
-  background-size: 300% 300%;
-  animation: fldHeaderGradient 8s ease infinite;
+  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981);
 }
 
 /* Glass card — signature SkuastAdvisory treatment */
@@ -83,7 +23,7 @@ const FIELDS_STYLES = `
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.6);
   box-shadow: 0 4px 24px rgba(34,197,94,0.07), 0 1px 3px rgba(0,0,0,0.04);
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+
 }
 .fld-glass-card:hover {
   transform: translateY(-5px);
@@ -95,7 +35,7 @@ const FIELDS_STYLES = `
 .fld-field-card {
   background: white;
   border: 1.5px solid #e5e7eb;
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+
   position: relative;
   overflow: hidden;
 }
@@ -106,7 +46,7 @@ const FIELDS_STYLES = `
   height: 3px;
   background: linear-gradient(90deg, #10b981, #059669, #34d399);
   opacity: 0;
-  transition: opacity .22s ease;
+
 }
 .fld-field-card:hover::before { opacity: 1; }
 .fld-field-card:hover {
@@ -116,32 +56,18 @@ const FIELDS_STYLES = `
 }
 
 /* Pulse indicator like SkuastAdvisory */
-.fld-pulse::before {
+. ::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
   background: rgba(34,197,94,0.5);
-  animation: fldPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite;
-}
 
-/* Leaf icon sway */
-.fld-leaf {
-  display: inline-block;
-  animation: fldLeafSway 3s ease-in-out infinite;
-  transform-origin: bottom center;
-}
-
-/* Shimmer loader */
-.fld-shimmer {
-  background: linear-gradient(90deg, #f0fdf4 25%, #dcfce7 50%, #f0fdf4 75%);
-  background-size: 400px 100%;
-  animation: fldShimmer 1.4s ease-in-out infinite;
 }
 
 /* Input focus */
 .fld-input {
-  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+
 }
 .fld-input:focus {
   border-color: #16a34a !important;
@@ -152,7 +78,7 @@ const FIELDS_STYLES = `
 
 /* Step button */
 .fld-step-btn {
-  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+
 }
 .fld-step-btn.active {
   background: linear-gradient(135deg, #15803d, #16a34a);
@@ -162,7 +88,7 @@ const FIELDS_STYLES = `
 
 /* Soil image button */
 .fld-soil-btn {
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+
 }
 .fld-soil-btn:hover {
   transform: translateY(-4px) scale(1.02);
@@ -171,7 +97,7 @@ const FIELDS_STYLES = `
 
 /* Row card */
 .fld-row-card {
-  transition: box-shadow .2s ease, border-color .2s ease;
+
 }
 .fld-row-card:hover {
   box-shadow: 0 4px 18px rgba(34,197,94,0.10);
@@ -180,7 +106,7 @@ const FIELDS_STYLES = `
 
 /* Variety pill */
 .fld-variety-pill {
-  transition: transform .15s ease, box-shadow .15s ease;
+
 }
 .fld-variety-pill:hover {
   transform: translateY(-1px);
@@ -195,7 +121,7 @@ const FIELDS_STYLES = `
 .fld-stat {
   background: white;
   border: 1px solid #f3f4f6;
-  transition: transform .2s ease, box-shadow .2s ease;
+
 }
 .fld-stat:hover {
   transform: translateY(-3px);
@@ -397,7 +323,7 @@ const Fields = () => {
   }, []);
 
   const handleDeleteField = async (field: Field) => {
-    if (!window.confirm(`Are you sure you want to delete "${field.name}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete"${field.name}"?`)) return;
     const { error } = await supabase.from('fields').delete().eq('id', field.id);
     if (!error) setFields((prev) => prev.filter((f) => f.id !== field.id));
     else alert('Failed to delete field.');
@@ -1056,42 +982,38 @@ const Fields = () => {
       <div className="space-y-7 pb-12">
 
         {/* ══════════ HERO HEADER (SkuastAdvisory-style) ══════════ */}
-        <div className="fld-fade-down fld-d0 relative overflow-hidden rounded-3xl fld-header-banner shadow-2xl">
+        <div className="relative overflow-hidden rounded-3xl fld-header-banner shadow-2xl">
           <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute top-6 right-24 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
           <div className="absolute bottom-4 left-24 w-14 h-14 rounded-full bg-white/6 pointer-events-none" />
 
           <div className="relative px-8 py-10 flex flex-col items-center text-center gap-4">
-            {/* Live badge */}
-            <div className="fld-scale-in fld-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
-              <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 fld-pulse" />
-              Field Management · Live
-            </div>
+          
 
             {/* Title */}
-            <h1 className="fld-fade-up fld-d2 text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-              <span className="fld-leaf"></span>{' '}Orchards
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+              <span className=""></span>{' '}Orchards
             </h1>
 
             {/* Subtitle */}
-            <p className="fld-fade-up fld-d3 text-base sm:text-lg text-emerald-100/90 font-medium max-w-md">
+            <p className="text-base sm:text-lg text-emerald-100/90 font-medium max-w-md">
               Manage and view all your orchard fields with ease
             </p>
 
             {/* CTA */}
             <button
               onClick={openWizard}
-              className="fld-scale-in fld-d4 group flex items-center gap-2 px-7 py-3.5 bg-white text-green-700 font-bold rounded-2xl shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-200"
+              className="group flex items-center gap-2 px-7 py-3.5 bg-white text-green-700 font-bold rounded-2xl shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-200"
             >
               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
-              Create Field
+              
             </button>
           </div>
         </div>
 
         {/* ══════════ SEARCH BAR ══════════ */}
-        <div className="fld-fade-up fld-d1">
+        <div className="">
           <div className="fld-glass-card rounded-2xl p-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="fld-search-wrap flex-1 relative">
@@ -1118,7 +1040,7 @@ const Fields = () => {
 
         {/* ══════════ STAT STRIP ══════════ */}
         {fields.length > 0 && (
-          <div className="fld-fade-up fld-d2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: 'Total Fields',   value: fields.length,                         icon: '🗺️',  color: 'from-emerald-500 to-green-600' },
               { label: 'Total Trees',    value: totalFieldTrees || '—',                icon: '🌳',  color: 'from-green-500 to-teal-500' },
@@ -1140,7 +1062,7 @@ const Fields = () => {
 
         {/* ══════════ ERROR ══════════ */}
         {fieldsError && (
-          <div className="fld-slide-r px-4 py-3 rounded-2xl border border-red-200 bg-red-50/80 text-sm text-red-700 flex items-center gap-2">
+          <div className="px-4 py-3 rounded-2xl border border-red-200 bg-red-50/80 text-sm text-red-700 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
             {fieldsError}
           </div>
@@ -1152,8 +1074,8 @@ const Fields = () => {
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 rounded-full border-4 border-green-200 border-t-green-600 animate-spin" />
               <div className="space-y-2">
-                <div className="fld-shimmer h-3 w-32 rounded-full mx-auto" />
-                <div className="fld-shimmer h-2 w-20 rounded-full mx-auto" />
+                <div className="h-3 w-32 rounded-full mx-auto" />
+                <div className="h-2 w-20 rounded-full mx-auto" />
               </div>
               <p className="text-sm text-gray-400 font-medium">Loading your orchards…</p>
             </div>
@@ -1181,7 +1103,7 @@ const Fields = () => {
               return (
                 <div
                   key={field.id}
-                  className="fld-field-card fld-fade-up rounded-2xl"
+                  className="fld-field-card rounded-2xl"
                   style={{ animationDelay: `${fi * 0.06}s` }}
                 >
                   {/* Card top accent line by health */}
@@ -1338,14 +1260,10 @@ const Fields = () => {
 
         {/* ══════════ EMPTY STATE ══════════ */}
         {!fieldsLoading && filteredFields.length === 0 && (
-          <div className="fld-scale-in fld-glass-card rounded-3xl p-14 text-center border-2 border-dashed border-green-200">
+          <div className="fld-glass-card rounded-3xl p-14 text-center border-2 border-dashed border-green-200">
             <div className="relative w-24 h-24 mx-auto mb-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-inner fld-float">
-                <span className="text-5xl"></span>
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                <Plus className="w-4 h-4 text-white" />
-              </div>
+             
+              
             </div>
             <h3 className="text-xl font-extrabold text-gray-900 mb-2">
               {searchTerm ? 'No matching orchards' : 'No orchards yet'}
@@ -1360,7 +1278,7 @@ const Fields = () => {
                 style={{ background: 'linear-gradient(135deg, #15803d, #16a34a)' }}
               >
                 <Plus className="w-5 h-5" />
-                Create Your First Orchard
+                
               </button>
             )}
           </div>
@@ -1370,12 +1288,12 @@ const Fields = () => {
         {wizardOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetWizard} />
-            <div className="fld-scale-in relative bg-white w-full max-w-5xl mx-4 rounded-3xl shadow-2xl overflow-hidden">
+            <div className="relative bg-white w-full max-w-5xl mx-4 rounded-3xl shadow-2xl overflow-hidden">
 
               {/* Modal Header */}
               <div className="flex items-center justify-between px-6 py-5 fld-header-banner">
                 <div className="flex items-center gap-3">
-                  <div className="fld-glow w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-lg">
                     <span className="text-xl">🌳</span>
                   </div>
                   <div>
@@ -1423,7 +1341,7 @@ const Fields = () => {
 
                 {/* ── Step 1: Orchard Details ── */}
                 {wizardStep === 1 && (
-                  <div className="space-y-6 fld-fade-up">
+                  <div className="space-y-6">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="w-1 h-6 rounded-full bg-gradient-to-b from-green-500 to-emerald-600" />
                       <h3 className="text-base font-extrabold text-gray-900">Basic Orchard Information</h3>
@@ -1552,7 +1470,7 @@ const Fields = () => {
 
                 {/* ── Step 2: Soil Type ── */}
                 {wizardStep === 2 && (
-                  <div className="space-y-6 fld-fade-up">
+                  <div className="space-y-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <div className="w-1 h-6 rounded-full bg-gradient-to-b from-amber-500 to-orange-500" />
@@ -1605,7 +1523,7 @@ const Fields = () => {
 
                 {/* ── Step 3: Location ── */}
                 {wizardStep === 3 && (
-                  <div className="space-y-5 fld-fade-up">
+                  <div className="space-y-5">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="w-1 h-6 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500" />
                       <h3 className="text-base font-extrabold text-gray-900">Location Details</h3>
@@ -1869,7 +1787,7 @@ const Fields = () => {
         {soilGuideOpen && (
           <div className="fixed inset-0 z-60 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSoilGuideOpen(false)} />
-            <div className="fld-scale-in relative bg-white w-full max-w-lg mx-4 rounded-3xl shadow-2xl p-6">
+            <div className="relative bg-white w-full max-w-lg mx-4 rounded-3xl shadow-2xl p-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
@@ -1905,7 +1823,7 @@ const Fields = () => {
         {scoutingModal && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setScoutingModal(null)} />
-            <div className="fld-scale-in relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" style={{ maxHeight: '90vh' }}>
+            <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" style={{ maxHeight: '90vh' }}>
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 fld-header-banner">
                 <div className="flex items-center gap-3">
@@ -2041,10 +1959,10 @@ const Fields = () => {
         {tagFormOpen && pendingTagLocation && (
           <div className="fixed inset-0 z-70 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setTagFormOpen(false)} />
-            <div className="fld-scale-in relative bg-white w-full max-w-lg mx-4 rounded-3xl shadow-2xl p-6">
+            <div className="relative bg-white w-full max-w-lg mx-4 rounded-3xl shadow-2xl p-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="fld-glow w-10 h-10 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm">
                     <span className="text-xl">🌲</span>
                   </div>
                   <h3 className="text-lg font-extrabold text-gray-900">Tag Tree</h3>

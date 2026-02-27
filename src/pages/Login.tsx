@@ -1,12 +1,13 @@
 /**
- * Login.tsx  — RBAC-aware login (SKUAST-style Premium UI)
+ * Login.tsx  — Dual Authentication: Email/Password OR Phone/OTP (SKUAST-style Premium UI)
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Phone, Mail, Eye, EyeOff, Lock, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { validatePhone, formatPhoneForDisplay } from '../utils/phoneValidation';
 
 const LOGIN_STYLES = `
 /* ─── Keyframes ─── */
@@ -142,16 +143,47 @@ const LOGIN_STYLES = `
   background-size: 400px 100%;
   animation: lgShimmer 2s ease-in-out infinite;
 }
+
+/* Auth method toggle */
+.lg-auth-toggle {
+  display: inline-flex;
+  background: #f0fdf4;
+  border: 1.5px solid #d1fae5;
+  border-radius: 12px;
+  padding: 4px;
+}
+.lg-auth-toggle button {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.lg-auth-toggle button.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+}
+.lg-auth-toggle button:not(.active) {
+  color: #065f46;
+}
 `;
 
 const Login: React.FC = () => {
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { session, userRole } = useAuth();
+
+  // Phone validation state
+  const [phoneValidation, setPhoneValidation] = useState<{ valid: boolean; message: string; formatted: string } | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -162,34 +194,149 @@ const Login: React.FC = () => {
     }
   }, [navigate, session, userRole]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Email/Password Login
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
 
-    if (error) {
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      let role: string | null = null;
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+        role = profile?.role ?? data.user.user_metadata?.role ?? null;
+      }
+
       setLoading(false);
-      setErrorMessage(error.message);
+      if (role === 'Doctor') {
+        navigate('/orchard-doctor', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Login failed');
+    }
+  };
+
+  // Phone OTP Login - Send OTP
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!phone.trim()) {
+      setErrorMessage('Please enter a valid phone number');
       return;
     }
 
-    let role: string | null = null;
-    if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-      role = profile?.role ?? data.user.user_metadata?.role ?? null;
+    // Validate phone number format
+    const validation = validatePhone(phone);
+    if (!validation.valid) {
+      setErrorMessage(validation.message);
+      return;
     }
 
-    setLoading(false);
-    if (role === 'Doctor') {
-      navigate('/orchard-doctor', { replace: true });
+    setLoading(true);
+
+    // ══════════════════════════════════════════════════════════════
+    // SEND OTP VIA SUPABASE + TWILIO
+    // ══════════════════════════════════════════════════════════════
+    try {
+      // Use the formatted phone number in E.164 format
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone: validation.formatted,
+        options: {
+          channel: 'sms',
+        },
+      });
+
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      // Update phone with formatted version
+      setPhone(validation.formatted);
+      setOtpSent(true);
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Failed to send OTP');
+    }
+    // ══════════════════════════════════════════════════════════════
+  };
+
+  // Phone OTP Login - Verify OTP
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setLoading(true);
+
+    // ══════════════════════════════════════════════════════════════
+    // VERIFY OTP WITH SUPABASE
+    // ══════════════════════════════════════════════════════════════
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: phone, // Already formatted from handleSendOtp
+        token: otp,
+        type: 'sms',
+      });
+
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      let role: string | null = null;
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+        role = profile?.role ?? data.user.user_metadata?.role ?? null;
+      }
+
+      setLoading(false);
+      if (role === 'Doctor') {
+        navigate('/orchard-doctor', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Failed to verify OTP');
+    }
+    // ══════════════════════════════════════════════════════════════
+  };
+
+  // Handle phone change with validation
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPhone(value);
+
+    if (value.trim()) {
+      const validation = validatePhone(value);
+      setPhoneValidation(validation);
     } else {
-      navigate('/dashboard', { replace: true });
+      setPhoneValidation(null);
     }
   };
 
@@ -225,70 +372,221 @@ const Login: React.FC = () => {
               <h1 className="lg-fade-up lg-d1 text-3xl font-extrabold text-gray-900 tracking-tight">
                 <span className="lg-leaf"></span> Welcome Back
               </h1>
-              <p className="lg-fade-up lg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Sign in to manage your orchard</p>
+              <p className="lg-fade-up lg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">
+                {otpSent ? 'Verify OTP to login' : 'Sign in to manage your orchard'}
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
-              <div className="lg-slide-r lg-d2 space-y-1.5">
-                <label htmlFor="email" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
-                  <input
-                    id="email" type="email" value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="lg-input w-full pl-10 pr-4 py-3 rounded-xl text-sm"
-                    placeholder="your.email@example.com" required
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="lg-slide-r lg-d3 space-y-1.5">
-                <label htmlFor="password" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
-                  <input
-                    id="password" type={showPassword ? 'text' : 'password'}
-                    value={password} onChange={e => setPassword(e.target.value)}
-                    className="lg-input w-full pl-10 pr-12 py-3 rounded-xl text-sm"
-                    placeholder="Enter your password" required
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-700 transition-colors">
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {/* Auth Method Toggle */}
+            {!otpSent && (
+              <div className="lg-fade-up lg-d1 flex justify-center mb-6">
+                <div className="lg-auth-toggle">
+                  <button
+                    type="button"
+                    className={authMethod === 'email' ? 'active' : ''}
+                    onClick={() => setAuthMethod('email')}
+                  >
+                    <Mail className="w-4 h-4 inline-block mr-2" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    className={authMethod === 'phone' ? 'active' : ''}
+                    onClick={() => setAuthMethod('phone')}
+                  >
+                    <Phone className="w-4 h-4 inline-block mr-2" />
+                    Phone
                   </button>
                 </div>
               </div>
+            )}
 
-              {/* Error */}
-              {errorMessage && (
-                <div className="lg-fade-up flex items-center gap-2 px-4 py-3 bg-red-900/40 border border-red-400/40 backdrop-blur-sm rounded-xl text-sm text-red-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                  {errorMessage}
+            {/* Email/Password Form */}
+            {!otpSent && authMethod === 'email' && (
+              <form onSubmit={handleEmailLogin} className="space-y-5">
+                {/* Email */}
+                <div className="lg-slide-r lg-d2 space-y-1.5">
+                  <label htmlFor="email" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
+                    <input
+                      id="email" type="email" value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="lg-input w-full pl-10 pr-4 py-3 rounded-xl text-sm"
+                      placeholder="your.email@example.com" required
+                    />
+                  </div>
                 </div>
-              )}
 
-              {/* Submit */}
-              <div className="lg-fade-up lg-d4">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="lg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30"
-                >
-                  {loading ? (
-                    <>
-                      <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      Signing In…
-                    </>
-                  ) : 'Sign In'}
+                {/* Password */}
+                <div className="lg-slide-r lg-d3 space-y-1.5">
+                  <label htmlFor="password" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="lg-input w-full pl-10 pr-12 py-3 rounded-xl text-sm"
+                      placeholder="Enter your password" required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-700 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error */}
+                {errorMessage && (
+                  <div className="lg-fade-up flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {errorMessage}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <div className="lg-fade-up lg-d4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="lg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Signing in…
+                      </>
+                    ) : 'Sign In'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Phone OTP Form - Send OTP */}
+            {!otpSent && authMethod === 'phone' && (
+              <form onSubmit={handleSendOtp} className="space-y-5">
+                {/* Phone Number */}
+                <div className="lg-slide-r lg-d2 space-y-2">
+                  <label htmlFor="phone" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
+                    <input
+                      id="phone" type="tel" value={phone}
+                      onChange={handlePhoneChange}
+                      className="lg-input w-full pl-10 pr-4 py-3 rounded-xl text-sm"
+                      placeholder="+911234567890" required
+                    />
+                  </div>
+                  {phoneValidation && phone.trim() && (
+                    <div className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs ${
+                      phoneValidation.valid
+                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                        : 'bg-amber-50 border border-amber-200 text-amber-700'
+                    }`}>
+                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">{phoneValidation.message}</p>
+                        {phoneValidation.valid && (
+                          <p className="mt-0.5 opacity-80">Formatted: {formatPhoneForDisplay(phoneValidation.formatted)}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Error */}
+                {errorMessage && (
+                  <div className="lg-fade-up flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {errorMessage}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <div className="lg-fade-up lg-d4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="lg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Sending OTP…
+                      </>
+                    ) : 'Send OTP'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Phone OTP Form - Verify OTP */}
+            {otpSent && (
+              <form onSubmit={handleVerifyOtp} className="space-y-5">
+                <div className="lg-fade-up text-center">
+                  <p className="text-sm text-emerald-700 mb-4">
+                    We've sent an OTP to <strong>{phone}</strong>
+                  </p>
+
+                  {/* OTP Input */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="otp" className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                      Enter OTP
+                    </label>
+                    <input
+                      id="otp"
+                      type="text"
+                      value={otp}
+                      onChange={e => setOtp(e.target.value)}
+                      placeholder="Enter 6-digit OTP"
+                      required
+                      maxLength={6}
+                      className="lg-input w-full px-4 py-2.5 rounded-xl text-sm text-center text-2xl tracking-widest"
+                    />
+                  </div>
+                </div>
+
+                {/* Error */}
+                {errorMessage && (
+                  <div className="lg-fade-up flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {errorMessage}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <div className="lg-fade-up lg-d4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="lg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Verifying…
+                      </>
+                    ) : 'Verify OTP'}
+                  </button>
+                </div>
+
+                <button type="button" onClick={() => setOtpSent(false)}
+                  className="w-full text-sm text-emerald-600 hover:text-emerald-800 font-semibold transition-colors">
+                  ← Back to phone number
                 </button>
-              </div>
-            </form>
+              </form>
+            )}
 
             {/* Footer links */}
             <div className="lg-fade-up lg-d5 mt-7 text-center space-y-3">

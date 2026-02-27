@@ -872,9 +872,9 @@ const LandingPage: React.FC = () => {
           <div className="lp-tab-bar">
             {(
               [
-                { id: 'individuals', label: 'Individuals' },
+                { id: 'individuals', label: 'Growers' },
                 { id: 'business',    label: 'Business' },
-                { id: 'cooperative', label: 'Students / Agronomists' },
+                { id: 'cooperative', label: 'Students / Universities' },
               ] as Array<{ id: 'individuals' | 'business' | 'cooperative'; label: string }>
             ).map(tab => (
               <button

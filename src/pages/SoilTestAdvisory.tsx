@@ -15,103 +15,28 @@ import { useLocation } from 'react-router-dom';
    GLOBAL CSS
 ══════════════════════════════════════════════════════════════════════════ */
 const STYLES = `
-@keyframes fadeUp   { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
-@keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
-@keyframes scaleIn  { from{opacity:0;transform:scale(0.91)} to{opacity:1;transform:scale(1)} }
-@keyframes slideR   { from{opacity:0;transform:translateX(-22px)} to{opacity:1;transform:translateX(0)} }
-@keyframes slideL   { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
-@keyframes floatUp  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-@keyframes spin360  { to{transform:rotate(360deg)} }
-@keyframes pulse2   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.55;transform:scale(1.18)} }
-@keyframes shimmer  { 0%{background-position:-700px 0} 100%{background-position:700px 0} }
-@keyframes defGrow  { from{width:0%} to{width:var(--dw)} }
-@keyframes excGrow  { from{width:0%} to{width:var(--ew)} }
-@keyframes okGrow   { from{width:0%} to{width:var(--ow)} }
-@keyframes gradShift{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-@keyframes borderGlow{ 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.0)} 50%{box-shadow:0 0 0 4px rgba(16,185,129,.18)} }
-@keyframes waterRipple{ 0%{transform:scale(1);opacity:.7} 100%{transform:scale(2.2);opacity:0} }
-@keyframes countUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-@keyframes leafSway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
-@keyframes pulseRing{ 0%{transform:scale(1);opacity:.8} 100%{transform:scale(1.6);opacity:0} }
-@keyframes skShimmer{ 0%{background-position:-400px 0} 100%{background-position:400px 0} }
-
-/* SKUAST-style leaf icon */
-.sk-leaf { display:inline-block; animation:leafSway 3s ease-in-out infinite; transform-origin:bottom center; }
-/* SKUAST-style pulse ring */
-.sk-pulse::before { content:''; position:absolute; inset:0; border-radius:50%; background:rgba(167,243,208,0.5); animation:pulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite; }
-/* SKUAST-style top shimmer bar */
-.sk-shimmer-bar { background:linear-gradient(90deg,rgba(167,243,208,0.25) 25%,rgba(167,243,208,0.6) 50%,rgba(167,243,208,0.25) 75%); background-size:400px 100%; animation:skShimmer 2s ease-in-out infinite; }
-
-.a-fade-up  { animation: fadeUp   0.55s cubic-bezier(.22,1,.36,1) both }
-.a-fade-dn  { animation: fadeDown 0.45s cubic-bezier(.22,1,.36,1) both }
-.a-scale-in { animation: scaleIn  0.42s cubic-bezier(.22,1,.36,1) both }
-.a-slide-r  { animation: slideR   0.44s cubic-bezier(.22,1,.36,1) both }
-.a-slide-l  { animation: slideL   0.44s cubic-bezier(.22,1,.36,1) both }
-
-.d0{animation-delay:.00s} .d1{animation-delay:.06s} .d2{animation-delay:.12s}
-.d3{animation-delay:.18s} .d4{animation-delay:.24s} .d5{animation-delay:.30s}
-.d6{animation-delay:.36s} .d7{animation-delay:.42s} .d8{animation-delay:.48s}
-
 /* Gauge bars */
-.gauge-def{ animation:defGrow 1.2s cubic-bezier(.22,1,.36,1) both; width:var(--dw) }
-.gauge-exc{ animation:excGrow 1.2s cubic-bezier(.22,1,.36,1) both; width:var(--ew) }
-.gauge-ok { animation:okGrow  1.2s cubic-bezier(.22,1,.36,1) both; width:var(--ow) }
-
-/* Alert pulse */
-.alert-dot { animation: pulse2 1.9s ease-in-out infinite }
+.gauge-def{ width:var(--dw) }
+.gauge-exc{ width:var(--ew) }
+.gauge-ok { width:var(--ow) }
 
 /* Test list row */
-.test-row { transition: all .2s cubic-bezier(.22,1,.36,1) }
-.test-row:hover { transform: translateX(3px) }
+.test-row { transition: background .2s ease, border-color .2s ease, box-shadow .2s ease }
 
 /* Toggle pill */
-.toggle-pill { transition: all .25s cubic-bezier(.34,1.56,.64,1) }
-
-/* Skeleton shimmer */
-.skeleton {
-  background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
-  background-size:700px 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius:10px;
-}
+.toggle-pill { transition: background .25s ease, color .25s ease, box-shadow .25s ease }
 
 /* Gradient header */
 .hero-soil {
   background: linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 70%, #059669 100%);
-  background-size: 300% 300%;
-  animation: gradShift 8s ease infinite;
 }
 .hero-water {
   background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 40%, #1d4ed8 70%, #2563eb 100%);
-  background-size: 300% 300%;
-  animation: gradShift 8s ease infinite;
 }
 
-/* Glassmorphism panel */
-.glass-card {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.7);
-}
-
-/* Floating icon */
-.float-icon { animation: floatUp 3s ease-in-out infinite }
-
-/* Hover lift on param cards */
-.param-card { transition: transform .2s ease, box-shadow .2s ease }
-.param-card:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 14px 36px rgba(0,0,0,.10) }
-
-/* Ripple for water */
-.ripple {
-  position:absolute; border-radius:50%;
-  border: 2px solid rgba(59,130,246,.4);
-  animation: waterRipple 2s ease-out infinite;
-  pointer-events:none;
-}
-
-/* Count badge animate */
-.count-badge { animation: countUp .4s cubic-bezier(.22,1,.36,1) both }
+/* Hover on param cards */
+.param-card { transition: box-shadow .2s ease }
+.param-card:hover { box-shadow:0 8px 20px rgba(0,0,0,.08) }
 
 /* Scrollbar */
 .thin-scroll::-webkit-scrollbar { width:4px }
@@ -247,10 +172,10 @@ const GaugeRow: React.FC<{label:string; value:number|null; unit:string; range:Ra
   const okColor = accent==='blue' ? 'bg-gradient-to-r from-blue-400 to-blue-600' : 'bg-gradient-to-r from-emerald-400 to-emerald-600';
 
   return (
-    <div ref={ref} className={`param-card a-fade-up rounded-2xl border ${meta.border} ${meta.bg} p-4 shadow-sm`} style={{animationDelay:`${delay*0.055}s`}}>
+    <div ref={ref} className={`param-card rounded-2xl border ${meta.border} ${meta.bg} p-4 shadow-sm`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          {(status==='deficient'||status==='excess') && <span className="alert-dot w-2 h-2 rounded-full" style={{background:status==='deficient'?'#ef4444':'#f97316'}}/>}
+          {(status==='deficient'||status==='excess') && <span className="w-2 h-2 rounded-full" style={{background:status==='deficient'?'#ef4444':'#f97316'}}/>}
           <span className="text-sm font-semibold text-gray-800">{label}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -284,7 +209,7 @@ const GaugeRow: React.FC<{label:string; value:number|null; unit:string; range:Ra
           </div>
         </div>
       ) : (
-        <div className="skeleton h-3 w-full opacity-50"/>
+        <div className="bg-gray-200 h-3 w-full rounded opacity-50"/>
       )}
     </div>
   );
@@ -310,13 +235,13 @@ const NutrientPanel: React.FC<{tests:Record<string,number|null>; params:Record<s
   return (
     <div className="space-y-5">
       {/* Summary strip */}
-      <div className="a-scale-in grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {summaryItems.map(({count,label,bg,border,text,dot,pulse})=>(
           <div key={label} className={`rounded-2xl border ${border} ${bg} p-4 text-center shadow-sm`}>
             <div className="flex justify-center mb-1.5">
-              <span className={`w-2 h-2 rounded-full ${dot} ${pulse?'alert-dot':''}`}/>
+              <span className={`w-2 h-2 rounded-full ${dot}`}/>
             </div>
-            <p className={`text-2xl font-extrabold count-badge ${text}`}>{count}</p>
+            <p className={`text-2xl font-extrabold ${text}`}>{count}</p>
             <p className="text-[11px] text-gray-500 mt-0.5 font-medium">{label}</p>
           </div>
         ))}
@@ -374,7 +299,7 @@ const FieldSelect: React.FC<{fields:Field[]; value:string; accent?:'green'|'blue
 );
 
 const EmptyDetail: React.FC<{label?:string; accent?:'green'|'blue'}> = ({label='Select a test to view details',accent='green'})=>(
-  <div className="a-fade-up flex flex-col items-center justify-center py-20 text-center bg-white border-2 border-dashed border-gray-200 rounded-2xl">
+  <div className="flex flex-col items-center justify-center py-20 text-center bg-white border-2 border-dashed border-gray-200 rounded-2xl">
     <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${accent==='blue'?'bg-blue-50':'bg-emerald-50'}`}>
       <FileText className={`w-8 h-8 ${accent==='blue'?'text-blue-200':'text-emerald-200'}`}/>
     </div>
@@ -391,7 +316,7 @@ const EmptyList: React.FC<{label:string; onAdd:()=>void; accent?:'green'|'blue'}
     <p className="text-sm text-gray-400 mb-4">{label}</p>
     <button
       onClick={onAdd}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 active:scale-95 shadow-md ${accent==='blue'?'bg-blue-500 hover:bg-blue-600 shadow-blue-200':'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200'}`}
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors shadow-md ${accent==='blue'?'bg-blue-500 hover:bg-blue-600 shadow-blue-200':'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200'}`}
     >
       <Plus className="w-4 h-4"/>Add First Test
     </button>
@@ -400,8 +325,8 @@ const EmptyList: React.FC<{label:string; onAdd:()=>void; accent?:'green'|'blue'}
 
 const RowActions: React.FC<{onEdit:()=>void; onDelete:()=>void; accent?:'green'|'blue'}> = ({onEdit,onDelete,accent='green'})=>(
   <div className="flex gap-1 ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-    <button onClick={e=>{e.stopPropagation();onEdit();}} className={`p-1.5 rounded-lg transition-all hover:scale-110 ${accent==='blue'?'text-blue-500 hover:bg-blue-50':'text-emerald-600 hover:bg-emerald-50'}`}><Edit className="w-3.5 h-3.5"/></button>
-    <button onClick={e=>{e.stopPropagation();onDelete();}} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-all hover:scale-110"><Trash2 className="w-3.5 h-3.5"/></button>
+    <button onClick={e=>{e.stopPropagation();onEdit();}} className={`p-1.5 rounded-lg transition-colors ${accent==='blue'?'text-blue-500 hover:bg-blue-50':'text-emerald-600 hover:bg-emerald-50'}`}><Edit className="w-3.5 h-3.5"/></button>
+    <button onClick={e=>{e.stopPropagation();onDelete();}} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5"/></button>
   </div>
 );
 
@@ -418,7 +343,7 @@ const RecsBlock: React.FC<{recs:string[]; accent?:'green'|'blue'}> = ({recs,acce
     <p className={`text-[11px] font-bold uppercase tracking-widest mb-3 ${accent==='blue'?'text-blue-600':'text-emerald-600'}`}>AI Recommendations</p>
     <ul className="space-y-2.5">
       {recs.map((r,i)=>(
-        <li key={i} className="a-slide-r flex items-start gap-2.5" style={{animationDelay:`${i*0.07}s`}}>
+        <li key={i} className="flex items-start gap-2.5">
           <CheckCircle className={`w-4 h-4 mt-0.5 shrink-0 ${accent==='blue'?'text-blue-500':'text-emerald-500'}`}/>
           <span className={`text-sm ${accent==='blue'?'text-blue-900':'text-emerald-900'}`}>{r}</span>
         </li>
@@ -642,7 +567,7 @@ const SoilTestAdvisory: React.FC = () => {
         <div className="relative w-16 h-16 mx-auto mb-4">
           <div className="w-16 h-16 border-4 border-emerald-100 rounded-full"/>
           <div className="absolute inset-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full" style={{animation:'spin360 0.9s linear infinite'}}/>
-          <Leaf className="absolute inset-0 m-auto w-6 h-6 text-emerald-500 float-icon"/>
+          <Leaf className="absolute inset-0 m-auto w-6 h-6 text-emerald-500"/>
         </div>
         <p className="text-sm font-medium text-gray-500">Loading advisory data…</p>
       </div>
@@ -658,55 +583,35 @@ const SoilTestAdvisory: React.FC = () => {
       <div className="space-y-6 pb-12">
 
         {/* ══ HERO HEADER ══ */}
-        <div className={`a-fade-up d0 relative overflow-hidden rounded-3xl shadow-2xl ${mode==='soil'?'hero-soil':'hero-water'}`}>
-          {/* Shimmer top accent bar */}
-          <div className="h-1 w-full sk-shimmer-bar"/>
-          {/* Decorative circles */}
-          <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none"/>
-          <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none"/>
-          <div className="absolute top-6 right-24 w-20 h-20 rounded-full bg-white/8 pointer-events-none"/>
-
-          {/* Floating icon cluster */}
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 opacity-15 pointer-events-none">
-            {mode==='soil'
-              ? <><FlaskConical className="w-20 h-20 float-icon text-white" style={{animationDelay:'.3s'}}/><Leaf className="w-10 h-10 float-icon text-white" style={{animationDelay:'.7s'}}/></>
-              : <><Droplets className="w-20 h-20 float-icon text-white" style={{animationDelay:'.3s'}}/><Waves className="w-10 h-10 float-icon text-white" style={{animationDelay:'.7s'}}/></>
-            }
-          </div>
-
-          <div className="relative p-6 md:p-8">
-            {/* Live badge */}
-            <div className="a-scale-in d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase mb-4">
-              <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 sk-pulse"/>
-              {mode==='soil' ? 'Soil Analysis · Live' : 'Water Analysis · Live'}
-            </div>
-
-            <div className="flex flex-wrap items-end justify-between gap-5">
+        <div className={`relative overflow-hidden rounded-3xl shadow-2xl ${mode==='soil'?'hero-soil':'hero-water'}`}>
+          <div className="relative p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               {/* Left: title + stats */}
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-1 drop-shadow-xl">
-                  <span className="sk-leaf"></span>{' '}
-                  {mode==='soil' ? 'Soil Test Advisory' : 'Water Quality Advisory'}
-                </h1>
-                <p className="text-white/80 text-sm font-medium">Monitor nutrients · Detect deficiencies &amp; excesses</p>
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight drop-shadow-xl">
+                    {mode==='soil' ? 'Soil Test Advisory' : 'Water Quality Advisory'}
+                  </h1>
+                  <p className="text-white/80 text-xs font-medium mt-0.5">Monitor nutrients · Detect deficiencies &amp; excesses</p>
+                </div>
 
                 {/* Quick stats */}
-                <div className="flex flex-wrap items-center gap-3 mt-4">
-                  <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm border border-white/25 rounded-xl px-3 py-1.5">
-                    <FlaskConical className="w-3.5 h-3.5 text-emerald-300"/>
-                    <span className="text-white text-xs font-bold">{soilTests.length} Soil</span>
+                <div className="hidden sm:flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm border border-white/25 rounded-lg px-2.5 py-1">
+                    <FlaskConical className="w-3 h-3 text-emerald-300"/>
+                    <span className="text-white text-[11px] font-bold">{soilTests.length} Soil</span>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm border border-white/25 rounded-xl px-3 py-1.5">
-                    <Droplets className="w-3.5 h-3.5 text-blue-300"/>
-                    <span className="text-white text-xs font-bold">{waterTests.length} Water</span>
+                  <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm border border-white/25 rounded-lg px-2.5 py-1">
+                    <Droplets className="w-3 h-3 text-blue-300"/>
+                    <span className="text-white text-[11px] font-bold">{waterTests.length} Water</span>
                   </div>
                 </div>
               </div>
 
               {/* Right: toggle + add button */}
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Tab toggle */}
-                <div className="flex items-center bg-white/15 backdrop-blur-sm rounded-2xl p-1.5 gap-1 border border-white/20">
+                <div className="flex items-center bg-white/15 backdrop-blur-sm rounded-xl p-1 gap-1 border border-white/20">
                   {([
                     {id:'soil'  as TestMode, Icon:FlaskConical, label:'Soil'},
                     {id:'water' as TestMode, Icon:Droplets,     label:'Water'},
@@ -718,11 +623,11 @@ const SoilTestAdvisory: React.FC = () => {
                         if(id==='soil') setWaterMode('view');
                         else setSoilMode('view');
                       }}
-                      className={`toggle-pill flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold select-none ${
+                      className={`toggle-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold select-none ${
                         mode===id ? 'bg-white text-gray-800 shadow-lg' : 'text-white/80 hover:text-white hover:bg-white/10'
                       }`}
                     >
-                      <Icon className="w-4 h-4"/><span className="hidden xs:inline">{label}</span>
+                      <Icon className="w-3.5 h-3.5"/><span className="hidden xs:inline">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -730,17 +635,17 @@ const SoilTestAdvisory: React.FC = () => {
                 {mode==='soil' && (
                   <button
                     onClick={()=>{ setSoilMode('create'); setSelSoil(null); setSoilForm(EMPTY_SOIL); }}
-                    className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-emerald-700 rounded-xl text-xs sm:text-sm font-bold shadow-lg hover:bg-emerald-50 transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-700 rounded-lg text-xs font-bold shadow-lg hover:bg-emerald-50 transition-colors"
                   >
-                    <Plus className="w-4 h-4"/><span>Add Soil Test</span>
+                    <Plus className="w-3.5 h-3.5"/><span>Add Soil</span>
                   </button>
                 )}
                 {mode==='water' && (
                   <button
                     onClick={()=>{ setWaterMode('create'); setSelWater(null); setWaterForm(EMPTY_WATER); }}
-                    className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-blue-700 rounded-xl text-xs sm:text-sm font-bold shadow-lg hover:bg-blue-50 transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-700 rounded-lg text-xs font-bold shadow-lg hover:bg-blue-50 transition-colors"
                   >
-                    <Plus className="w-4 h-4"/><span>Add Water Test</span>
+                    <Plus className="w-3.5 h-3.5"/><span>Add Water</span>
                   </button>
                 )}
               </div>
@@ -750,10 +655,10 @@ const SoilTestAdvisory: React.FC = () => {
 
         {/* Error banner */}
         {error && (
-          <div className="a-fade-dn flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
             <AlertCircle className="w-5 h-5 text-red-500 shrink-0"/>
             <p className="text-sm text-red-700">{error}</p>
-            <button onClick={()=>setError(null)} className="ml-auto text-red-400 hover:text-red-600"><X className="w-4 h-4"/></button>
+            <button onClick={()=>setError(null)} className="ml-auto text-red-400 hover:text-red-600 transition-colors"><X className="w-4 h-4"/></button>
           </div>
         )}
 
@@ -762,7 +667,7 @@ const SoilTestAdvisory: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* ── Left list ── */}
-            <div className="lg:col-span-1 a-scale-in d1">
+            <div className="lg:col-span-1">
               <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
                 {/* Panel header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-emerald-50 to-green-50">
@@ -775,7 +680,7 @@ const SoilTestAdvisory: React.FC = () => {
                   {soilTests.length>0 && (
                     <button
                       onClick={()=>{ setSoilMode('create'); setSelSoil(null); setSoilForm(EMPTY_SOIL); }}
-                      className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-white border border-emerald-200 rounded-lg px-2.5 py-1 transition-all hover:scale-105"
+                      className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-white border border-emerald-200 rounded-lg px-2.5 py-1 transition-colors"
                     >
                       <Plus className="w-3 h-3"/>Add
                     </button>
@@ -797,8 +702,7 @@ const SoilTestAdvisory: React.FC = () => {
                                 selSoil?.id===t.id
                                   ? 'border-emerald-400 bg-emerald-50 shadow-md shadow-emerald-100'
                                   : 'border-gray-100 bg-white hover:border-emerald-200 hover:shadow-sm'
-                              } a-scale-in`}
-                              style={{animationDelay:`${i*0.055}s`}}
+                              }`}
                               onClick={()=>{ setSelSoil(t); setSoilMode('view'); }}
                             >
                               <div className="flex items-start justify-between">
@@ -817,7 +721,7 @@ const SoilTestAdvisory: React.FC = () => {
                                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${phOk?'bg-emerald-100 text-emerald-700 border-emerald-200':'bg-red-100 text-red-700 border-red-200'}`}>
                                         pH {ph}
                                       </span>
-                                      {!phOk && <span className="alert-dot w-1.5 h-1.5 rounded-full bg-red-500"/>}
+                                      {!phOk && <span className="w-1.5 h-1.5 rounded-full bg-red-500"/>}
                                     </div>
                                   )}
                                 </div>
@@ -842,7 +746,7 @@ const SoilTestAdvisory: React.FC = () => {
 
               {/* ── SOIL FORM ── */}
               {(soilMode==='create'||soilMode==='edit') && (
-                <div className="a-scale-in bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
                   {/* Form header */}
                   <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600">
                     <div className="flex items-center gap-3">
@@ -918,7 +822,7 @@ const SoilTestAdvisory: React.FC = () => {
 
               {/* ── SOIL DETAIL ── */}
               {selSoil && soilMode==='view' && (
-                <div className="a-scale-in space-y-5">
+                <div className="space-y-5">
                   <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
                     {/* Detail header */}
                     <div className="bg-gradient-to-r from-emerald-600 to-green-600 p-5">
@@ -995,7 +899,7 @@ const SoilTestAdvisory: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* ── Left list ── */}
-            <div className="lg:col-span-1 a-scale-in d1">
+            <div className="lg:col-span-1">
               <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-blue-50 to-sky-50">
                   <div className="flex items-center gap-2">
@@ -1007,7 +911,7 @@ const SoilTestAdvisory: React.FC = () => {
                   {waterTests.length>0 && (
                     <button
                       onClick={()=>{ setWaterMode('create'); setSelWater(null); setWaterForm(EMPTY_WATER); }}
-                      className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-white border border-blue-200 rounded-lg px-2.5 py-1 transition-all hover:scale-105"
+                      className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-white border border-blue-200 rounded-lg px-2.5 py-1 transition-colors"
                     >
                       <Plus className="w-3 h-3"/>Add
                     </button>
@@ -1026,8 +930,7 @@ const SoilTestAdvisory: React.FC = () => {
                               selWater?.id===t.id
                                 ? 'border-blue-400 bg-blue-50 shadow-md shadow-blue-100'
                                 : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm'
-                            } a-scale-in`}
-                            style={{animationDelay:`${i*0.055}s`}}
+                            }`}
                             onClick={()=>{ setSelWater(t); setWaterMode('view'); }}
                           >
                             <div className="flex items-start justify-between">
@@ -1070,7 +973,7 @@ const SoilTestAdvisory: React.FC = () => {
 
               {/* ── WATER FORM ── */}
               {(waterMode==='create'||waterMode==='edit') && (
-                <div className="a-scale-in bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
                   {/* Form header */}
                   <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
                     <div className="flex items-center gap-3">
@@ -1167,7 +1070,7 @@ const SoilTestAdvisory: React.FC = () => {
 
               {/* ── WATER DETAIL ── */}
               {selWater && waterMode==='view' && (
-                <div className="a-scale-in space-y-5">
+                <div className="space-y-5">
                   <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5">
                       <div className="flex items-start justify-between gap-3 flex-wrap">

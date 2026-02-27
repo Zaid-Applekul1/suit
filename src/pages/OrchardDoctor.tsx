@@ -259,7 +259,7 @@ function GrowerOrchardPanel({ field }: { field: GrowerFieldSummary }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ORCHARD MAP MODAL  (doctor clicks "View Map" on a patient's field)
+   ORCHARD MAP MODAL  (doctor clicks"View Map" on a patient's field)
 ═══════════════════════════════════════════════════════════════════════════ */
 
 function OrchardMapModal({
@@ -896,7 +896,7 @@ function PrescriptionBuilder({
             </div>
             {items.length === 0 && (
               <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
-                Click "Add Item" to add chemicals, fertilizers or labor instructions
+                Click"Add Item" to add chemicals, fertilizers or labor instructions
               </div>
             )}
             <div className="space-y-2">
@@ -1131,27 +1131,16 @@ export default function OrchardDoctor({
         animation: 'odGradShift 8s ease infinite',
       }}>
         <style>{`
-          @keyframes odGradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-          @keyframes odFadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes odFadeDown { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes odScaleIn { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
-          @keyframes odLeafSway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
-          @keyframes odPulseRing { 0%{transform:scale(1);opacity:0.8} 100%{transform:scale(1.6);opacity:0} }
-          @keyframes odShimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
-          .od-fade-up  { animation: odFadeUp  0.6s cubic-bezier(.22,1,.36,1) both; }
-          .od-fade-dn  { animation: odFadeDown 0.55s cubic-bezier(.22,1,.36,1) both; }
-          .od-scale-in { animation: odScaleIn 0.5s cubic-bezier(.22,1,.36,1) both; }
-          .od-leaf     { display:inline-block; animation:odLeafSway 3s ease-in-out infinite; transform-origin:bottom center; }
-          .od-d0{animation-delay:0s} .od-d1{animation-delay:.08s} .od-d2{animation-delay:.16s}
-          .od-d3{animation-delay:.24s} .od-d4{animation-delay:.32s}
-          .od-pulse::before { content:''; position:absolute; inset:0; border-radius:50%;
-            background:rgba(167,243,208,0.5); animation:odPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite; }
-          .od-shimmer-bar { background:linear-gradient(90deg,rgba(167,243,208,0.2) 25%,rgba(167,243,208,0.55) 50%,rgba(167,243,208,0.2) 75%); background-size:400px 100%; animation:odShimmer 2s ease-in-out infinite; }
-          .od-blue-shimmer { background:linear-gradient(90deg,rgba(147,197,253,0.2) 25%,rgba(147,197,253,0.55) 50%,rgba(147,197,253,0.2) 75%); background-size:400px 100%; animation:odShimmer 2s ease-in-out infinite; }
+          .od-fade-dn  { }
+          
+          . ::before { content:''; position:absolute; inset:0; border-radius:50%;
+            background:rgba(167,243,208,0.5); }
+          . -bar { background:linear-gradient(90deg,rgba(167,243,208,0.2) 25%,rgba(167,243,208,0.55) 50%,rgba(167,243,208,0.2) 75%); background-size:400px 100%; }
+          .od-blue-shimmer { background:linear-gradient(90deg,rgba(147,197,253,0.2) 25%,rgba(147,197,253,0.55) 50%,rgba(147,197,253,0.2) 75%); background-size:400px 100%; }
         `}</style>
 
         {/* Shimmer top accent bar */}
-        <div className={`h-1 w-full ${isDoctor ? 'od-blue-shimmer' : 'od-shimmer-bar'}`}/>
+        <div className={`h-1 w-full ${isDoctor ? 'od-blue-shimmer' : ' -bar'}`}/>
         {/* Decorative circles */}
         <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none"/>
         <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none"/>
@@ -1162,25 +1151,25 @@ export default function OrchardDoctor({
 
         <div className="relative px-6 py-9 sm:py-11 flex flex-col items-center text-center gap-4">
           {/* Live badge */}
-          <div className="od-scale-in od-d0 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
-            <span className="relative inline-block w-2 h-2 rounded-full bg-white od-pulse" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
+            <span className="relative inline-block w-2 h-2 rounded-full bg-white" />
             {isDoctor ? 'Doctor Portal · Live' : 'Grower Portal · Live'}
           </div>
 
           {/* Title */}
-          <h1 className="od-fade-up od-d2 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-            <span className="od-leaf"></span> Orchard Hospital
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+            <span className=""></span> Orchard Hospital
           </h1>
 
           {/* Subtitle */}
-          <p className="od-fade-up od-d3 text-sm sm:text-base text-white/80 font-medium max-w-lg">
+          <p className="text-sm sm:text-base text-white/80 font-medium max-w-lg">
             {isDoctor
               ? `Dr. ${resolvedGrowerName} — Telehealth & Diagnosis Portal · Kashmir`
               : `Telehealth & Agronomist Dispatch · Grower: ${resolvedGrowerName}`}
           </p>
 
           {/* Field selector (Growers only) + Refresh */}
-          <div className="od-fade-up od-d4 flex flex-wrap items-center gap-3 justify-center">
+          <div className="flex flex-wrap items-center gap-3 justify-center">
             {!isDoctor && !propFieldId && (
               <>
                 {fieldsLoading ? (
@@ -1231,7 +1220,7 @@ export default function OrchardDoctor({
 
       {/* ═══ TABS ════════════════════════════════════════════════════════ */}
       <div className="px-4 sm:px-6 pt-5">
-        <div className="od-scale-in od-d2 flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm overflow-x-auto">
+        <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm overflow-x-auto">
           {/* Doctor tabs */}
           {isDoctor && (
             <>

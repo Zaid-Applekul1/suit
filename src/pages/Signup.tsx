@@ -1,12 +1,13 @@
 /**
- * Signup.tsx  — RBAC-aware registration (SKUAST-style Premium Glassy UI)
+ * Signup.tsx  — Dual Authentication: Email/Password OR Phone/OTP (SKUAST-style Premium Glassy UI)
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Mail, MapPin, Globe, DollarSign, Lock, Eye, EyeOff, Building2, X } from 'lucide-react';
+import { User, Phone, Mail, MapPin, Globe, DollarSign, Lock, Eye, EyeOff, Building2, X, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { validatePhone, formatPhoneForDisplay } from '../utils/phoneValidation';
 
 const SIGNUP_STYLES = `
 /* ─── Keyframes ─── */
@@ -180,9 +181,33 @@ const SIGNUP_STYLES = `
   background: #f0fdf4;
   border: 1px solid #d1fae5;
 }
+
+/* Auth method toggle */
+.sg-auth-toggle {
+  display: inline-flex;
+  background: #f0fdf4;
+  border: 1.5px solid #d1fae5;
+  border-radius: 12px;
+  padding: 4px;
+}
+.sg-auth-toggle button {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.sg-auth-toggle button.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+}
+.sg-auth-toggle button:not(.active) {
+  color: #065f46;
+}
 `;
 
-/* ── InputField helper (adapted for glassy dark theme) ── */
+/* ── InputField helper ── */
 const InputField = ({
   id, name, type = 'text', value, onChange, placeholder, required, icon: Icon, label, suffix, minLength
 }: {
@@ -196,7 +221,7 @@ const InputField = ({
       {label} {required && <span className="text-red-400">*</span>}
     </label>
     <div className="relative">
-      {Icon && <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-300/60 w-4 h-4" />}
+      {Icon && <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />}
       <input
         id={id} name={name} type={type} value={value} onChange={onChange}
         placeholder={placeholder} required={required} minLength={minLength}
@@ -208,11 +233,23 @@ const InputField = ({
 );
 
 const Signup: React.FC = () => {
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [formData, setFormData] = useState({
-    name: '', whatsapp: '', email: '', password: '', confirmPassword: '',
-    address: '', language: 'en', currency: 'INR', role: '', doctorType: '',
-    farmName: '', khasraNumber: '', khataNumber: '',
-    specialization: '', hospitalName: '',
+    name: '',
+    phone: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    address: '',
+    language: 'en',
+    currency: 'INR',
+    role: '',
+    doctorType: '',
+    farmName: '',
+    khasraNumber: '',
+    khataNumber: '',
+    specialization: '',
+    hospitalName: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -220,6 +257,14 @@ const Signup: React.FC = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // OTP-related state (for phone auth)
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+
+  // Phone validation state
+  const [phoneValidation, setPhoneValidation] = useState<{ valid: boolean; message: string; formatted: string } | null>(null);
+
   const navigate = useNavigate();
   const { session } = useAuth();
 
@@ -233,11 +278,21 @@ const Signup: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Validate phone in real-time if phone field is changed
+    if (name === 'phone' && value.trim()) {
+      const validation = validatePhone(value);
+      setPhoneValidation(validation);
+    } else if (name === 'phone') {
+      setPhoneValidation(null);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Email/Password Signup
+  const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
     if (!acceptedTerms) { alert('Please accept the terms and conditions to continue.'); return; }
     if (formData.password !== formData.confirmPassword) { alert('Passwords do not match!'); return; }
     if (formData.password.length < 6) { alert('Password must be at least 6 characters long.'); return; }
@@ -245,41 +300,199 @@ const Signup: React.FC = () => {
     if (isDoctor && (!formData.specialization.trim() || !formData.hospitalName.trim())) {
       alert('Please fill in Specialization and Hospital / Clinic Name.'); return;
     }
+    if (!formData.email.trim()) { alert('Please enter a valid email.'); return; }
+
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email: formData.email, password: formData.password,
-      options: { data: { name: formData.name, phone: formData.whatsapp, role: formData.role, doctorType: isDoctor ? formData.doctorType : undefined } },
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            phone: formData.phone,
+            role: formData.role,
+          }
+        }
+      });
 
-    if (error) { setLoading(false); setErrorMessage(error.message); return; }
-
-    if (data.user) {
-      const userId = data.user.id;
-      const profilePayload: Record<string, unknown> = {
-        id: userId, name: formData.name, email: formData.email,
-        phone: formData.whatsapp, whatsapp: formData.whatsapp,
-        address: formData.address, language: formData.language,
-        currency: formData.currency, role: formData.role,
-        doctor_type: isDoctor ? formData.doctorType : null,
-        farm_name: isGrower ? formData.farmName : '',
-        khasra_number: isGrower ? (formData.khasraNumber || null) : null,
-        khata_number: isGrower ? (formData.khataNumber || null) : null,
-      };
-      const { error: profileError } = await supabase.from('profiles').upsert(profilePayload);
-      if (profileError) { setLoading(false); setErrorMessage(profileError.message); return; }
-
-      if (isDoctor) {
-        const { error: doctorError } = await supabase.from('doctors').insert({
-          user_id: userId, name: formData.name, specialization: formData.specialization,
-          hospital_name: formData.hospitalName, phone: formData.whatsapp || null,
-          email: formData.email || null, available: true,
-        });
-        if (doctorError) console.warn('Doctor profile creation failed during signup:', doctorError.message);
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message);
+        return;
       }
+
+      if (data.user) {
+        const userId = data.user.id;
+        const profilePayload: Record<string, unknown> = {
+          id: userId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          whatsapp: formData.phone,
+          address: formData.address,
+          language: formData.language,
+          currency: formData.currency,
+          role: formData.role,
+          doctor_type: isDoctor ? formData.doctorType : null,
+          farm_name: isGrower ? formData.farmName : '',
+          khasra_number: isGrower ? (formData.khasraNumber || null) : null,
+          khata_number: isGrower ? (formData.khataNumber || null) : null,
+        };
+
+        const { error: profileError } = await supabase.from('profiles').upsert(profilePayload);
+        if (profileError) {
+          setLoading(false);
+          setErrorMessage(profileError.message);
+          return;
+        }
+
+        if (isDoctor) {
+          const { error: doctorError } = await supabase.from('doctors').insert({
+            user_id: userId,
+            name: formData.name,
+            specialization: formData.specialization,
+            hospital_name: formData.hospitalName,
+            phone: formData.phone || null,
+            email: formData.email || null,
+            available: true,
+          });
+          if (doctorError) console.warn('Doctor profile creation failed during signup:', doctorError.message);
+        }
+      }
+
+      setLoading(false);
+      alert('Signup successful! Please check your email for verification.');
+      navigate('/login');
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Signup failed');
     }
-    setLoading(false);
-    navigate('/login');
+  };
+
+  // Phone OTP Signup - Send OTP
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!acceptedTerms) { alert('Please accept the terms and conditions to continue.'); return; }
+    if (formData.password !== formData.confirmPassword) { alert('Passwords do not match!'); return; }
+    if (formData.password.length < 6) { alert('Password must be at least 6 characters long.'); return; }
+    if (!formData.role) { alert('Please select a role.'); return; }
+    if (isDoctor && (!formData.specialization.trim() || !formData.hospitalName.trim())) {
+      alert('Please fill in Specialization and Hospital / Clinic Name.'); return;
+    }
+    if (!formData.phone.trim()) {
+      alert('Please enter a valid phone number.'); return;
+    }
+
+    // Validate phone number format
+    const validation = validatePhone(formData.phone);
+    if (!validation.valid) {
+      setErrorMessage(validation.message);
+      return;
+    }
+
+    setLoading(true);
+
+    // ══════════════════════════════════════════════════════════════
+    // TWILIO OTP INTEGRATION
+    // ══════════════════════════════════════════════════════════════
+    try {
+      // Use the formatted phone number in E.164 format
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone: validation.formatted,
+        options: {
+          channel: 'sms',
+        },
+      });
+
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      // Update formData with formatted phone
+      setFormData(prev => ({ ...prev, phone: validation.formatted }));
+      setOtpSent(true);
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Failed to send OTP');
+    }
+    // ══════════════════════════════════════════════════════════════
+  };
+
+  // Phone OTP Signup - Verify OTP
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setLoading(true);
+
+    // ══════════════════════════════════════════════════════════════
+    // VERIFY OTP WITH SUPABASE
+    // ══════════════════════════════════════════════════════════════
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formData.phone, // Already formatted from handleSendOtp
+        token: otp,
+        type: 'sms',
+      });
+
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      if (data.user) {
+        const userId = data.user.id;
+        const profilePayload: Record<string, unknown> = {
+          id: userId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          whatsapp: formData.phone,
+          address: formData.address,
+          language: formData.language,
+          currency: formData.currency,
+          role: formData.role,
+          doctor_type: isDoctor ? formData.doctorType : null,
+          farm_name: isGrower ? formData.farmName : '',
+          khasra_number: isGrower ? (formData.khasraNumber || null) : null,
+          khata_number: isGrower ? (formData.khataNumber || null) : null,
+        };
+
+        const { error: profileError } = await supabase.from('profiles').upsert(profilePayload);
+        if (profileError) {
+          setLoading(false);
+          setErrorMessage(profileError.message);
+          return;
+        }
+
+        if (isDoctor) {
+          const { error: doctorError } = await supabase.from('doctors').insert({
+            user_id: userId,
+            name: formData.name,
+            specialization: formData.specialization,
+            hospital_name: formData.hospitalName,
+            phone: formData.phone || null,
+            email: formData.email || null,
+            available: true,
+          });
+          if (doctorError) console.warn('Doctor profile creation failed during signup:', doctorError.message);
+        }
+      }
+
+      setLoading(false);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Failed to verify OTP');
+    }
+    // ══════════════════════════════════════════════════════════════
   };
 
   return (
@@ -314,222 +527,317 @@ const Signup: React.FC = () => {
               <h1 className="sg-fade-up sg-d1 text-3xl font-extrabold text-gray-900 tracking-tight">
                 <span className="sg-leaf"></span> Create Your Account
               </h1>
-              <p className="sg-fade-up sg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">Join AppleKul™ One to manage your orchard</p>
+              <p className="sg-fade-up sg-d2 text-sm text-emerald-700 mt-1.5 font-semibold">
+                {otpSent ? 'Verify OTP to complete signup' : 'Join AppleKul™ One to manage your orchard'}
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                {/* Role selector */}
-                <div className="space-y-1.5 sg-slide-r sg-d1">
-                  <label htmlFor="role" className="sg-label block">
-                    Role <span className="text-red-400">*</span>
-                  </label>
-                  <select id="role" name="role" value={formData.role} onChange={handleChange}
-                    className="sg-input w-full px-4 py-2.5 rounded-xl text-sm appearance-none" required>
-                    <option value="">Select Role…</option>
-                    <option value="Doctor">Doctor / Agronomist</option>
-                    <option value="Grower">Grower / Farmer</option>
-                  </select>
+            {/* Auth Method Toggle */}
+            {!otpSent && (
+              <div className="sg-fade-up sg-d1 flex justify-center mb-6">
+                <div className="sg-auth-toggle">
+                  <button
+                    type="button"
+                    className={authMethod === 'email' ? 'active' : ''}
+                    onClick={() => setAuthMethod('email')}
+                  >
+                    <Mail className="w-4 h-4 inline-block mr-2" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    className={authMethod === 'phone' ? 'active' : ''}
+                    onClick={() => setAuthMethod('phone')}
+                  >
+                    <Phone className="w-4 h-4 inline-block mr-2" />
+                    Phone
+                  </button>
                 </div>
+              </div>
+            )}
 
-                {/* Doctor: specialization */}
-                {isDoctor && (
-                  <div className="sg-fade-up">
-                    <InputField id="specialization" name="specialization" value={formData.specialization}
-                      onChange={handleChange} label="Specialization" placeholder="e.g. Plant Pathology" required={isDoctor} />
+            {!otpSent ? (
+              <form onSubmit={authMethod === 'email' ? handleEmailSignup : handleSendOtp} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                  {/* Role selector */}
+                  <div className="space-y-1.5 sg-slide-r sg-d1">
+                    <label htmlFor="role" className="sg-label block">
+                      Role <span className="text-red-400">*</span>
+                    </label>
+                    <select id="role" name="role" value={formData.role} onChange={handleChange}
+                      className="sg-input w-full px-4 py-2.5 rounded-xl text-sm appearance-none" required>
+                      <option value="">Select Role…</option>
+                      <option value="Doctor">Doctor / Agronomist</option>
+                      <option value="Grower">Grower / Farmer</option>
+                    </select>
                   </div>
-                )}
 
-                {/* Doctor: hospital name */}
-                {isDoctor && (
-                  <div className="md:col-span-2 sg-fade-up">
-                    <InputField id="hospitalName" name="hospitalName" value={formData.hospitalName}
-                      onChange={handleChange} label="Hospital / Clinic Name" icon={Building2}
-                      placeholder="e.g. Orchard Hospital Kashmir" required={isDoctor} />
+                  {/* Doctor: specialization */}
+                  {isDoctor && (
+                    <div className="sg-fade-up">
+                      <InputField id="specialization" name="specialization" value={formData.specialization}
+                        onChange={handleChange} label="Specialization" placeholder="e.g. Plant Pathology" required={isDoctor} />
+                    </div>
+                  )}
+
+                  {/* Doctor: hospital name */}
+                  {isDoctor && (
+                    <div className="md:col-span-2 sg-fade-up">
+                      <InputField id="hospitalName" name="hospitalName" value={formData.hospitalName}
+                        onChange={handleChange} label="Hospital / Clinic Name" icon={Building2}
+                        placeholder="e.g. Orchard Hospital Kashmir" required={isDoctor} />
+                    </div>
+                  )}
+
+                  {/* Full Name */}
+                  <div className="sg-slide-r sg-d2">
+                    <InputField id="name" name="name" value={formData.name} onChange={handleChange}
+                      label="Full Name" icon={User}
+                      placeholder={isDoctor ? 'Dr. Full Name' : 'Enter your full name'} required />
                   </div>
-                )}
 
-                {/* Full Name */}
-                <div className="sg-slide-r sg-d2">
-                  <InputField id="name" name="name" value={formData.name} onChange={handleChange}
-                    label="Full Name" icon={User}
-                    placeholder={isDoctor ? 'Dr. Full Name' : 'Enter your full name'} required />
-                </div>
-
-                {/* WhatsApp */}
-                <div className="sg-slide-r sg-d2">
-                  <InputField id="whatsapp" name="whatsapp" type="tel" value={formData.whatsapp}
-                    onChange={handleChange} label="WhatsApp Number" icon={Phone}
-                    placeholder="+91 1234567890" required />
-                </div>
-
-                {/* Email */}
-                <div className="sg-slide-r sg-d3">
-                  <InputField id="email" name="email" type="email" value={formData.email}
-                    onChange={handleChange} label="Email Address" icon={Mail}
-                    placeholder="your.email@example.com" required />
-                </div>
-
-                {/* Grower: Farm Name */}
-                {isGrower && (
-                  <div className="sg-fade-up">
-                    <InputField id="farmName" name="farmName" value={formData.farmName}
-                      onChange={handleChange} label="Farm Name" icon={Building2}
-                      placeholder="Your farm / orchard name" required={isGrower} />
+                  {/* Email (required for email auth, optional for phone auth) */}
+                  <div className="sg-slide-r sg-d3">
+                    <InputField id="email" name="email" type="email" value={formData.email}
+                      onChange={handleChange}
+                      label={authMethod === 'email' ? 'Email Address' : 'Email Address (Optional)'}
+                      icon={Mail}
+                      placeholder="your.email@example.com"
+                      required={authMethod === 'email'} />
                   </div>
-                )}
 
-                {/* Language */}
-                <div className="space-y-1.5 sg-slide-r sg-d3">
-                  <label htmlFor="language" className="sg-label block">
-                    Preferred Language <span className="text-red-400">*</span>
+                  {/* Phone Number (required for phone auth, optional for email auth) */}
+                  <div className="sg-slide-r sg-d2 space-y-2">
+                    <InputField id="phone" name="phone" type="tel" value={formData.phone}
+                      onChange={handleChange}
+                      label={authMethod === 'phone' ? 'Phone Number' : 'Phone Number (Optional)'}
+                      icon={Phone}
+                      placeholder="+911234567890"
+                      required={authMethod === 'phone'} />
+                    {phoneValidation && formData.phone.trim() && (
+                      <div className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs ${
+                        phoneValidation.valid
+                          ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                          : 'bg-amber-50 border border-amber-200 text-amber-700'
+                      }`}>
+                        <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold">{phoneValidation.message}</p>
+                          {phoneValidation.valid && (
+                            <p className="mt-0.5 opacity-80">Formatted: {formatPhoneForDisplay(phoneValidation.formatted)}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Grower: Farm Name */}
+                  {isGrower && (
+                    <div className="sg-fade-up">
+                      <InputField id="farmName" name="farmName" value={formData.farmName}
+                        onChange={handleChange} label="Farm Name" icon={Building2}
+                        placeholder="Your farm / orchard name" required={isGrower} />
+                    </div>
+                  )}
+
+                  {/* Language */}
+                  <div className="space-y-1.5 sg-slide-r sg-d3">
+                    <label htmlFor="language" className="sg-label block">
+                      Preferred Language <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
+                      <select id="language" name="language" value={formData.language} onChange={handleChange}
+                        className="sg-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm appearance-none" required>
+                        <option value="en">English</option>
+                        <option value="hi">Hindi (हिंदी)</option>
+                        <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+                        <option value="ur">Urdu (اردو)</option>
+                        <option value="bn">Bengali (বাংলা)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div className="sg-slide-r sg-d3">
+                    <InputField id="password" name="password" type={showPassword ? 'text' : 'password'}
+                      value={formData.password} onChange={handleChange}
+                      label="Password" icon={Lock} placeholder="Min. 6 characters" required minLength={6}
+                      suffix={
+                        <button type="button" onClick={() => setShowPassword(!showPassword)}
+                          className="text-emerald-500 hover:text-emerald-700 transition-colors">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      } />
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="sg-slide-r sg-d3">
+                    <InputField id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'}
+                      value={formData.confirmPassword} onChange={handleChange}
+                      label="Confirm Password" icon={Lock} placeholder="Re-enter password" required
+                      suffix={
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="text-emerald-500 hover:text-emerald-700 transition-colors">
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      } />
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="space-y-1.5 sg-fade-up sg-d3">
+                  <label htmlFor="address" className="sg-label block">
+                    Address <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
-                    <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-300/60 w-4 h-4" />
-                    <select id="language" name="language" value={formData.language} onChange={handleChange}
+                    <MapPin className="absolute left-3.5 top-3 text-emerald-500 w-4 h-4" />
+                    <textarea id="address" name="address" value={formData.address} onChange={handleChange}
+                      rows={3} placeholder="Enter your complete address" required
+                      className="sg-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm resize-none" />
+                  </div>
+                </div>
+
+                {/* Grower: Khasra & Khata */}
+                {isGrower && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sg-fade-up">
+                    <InputField id="khasraNumber" name="khasraNumber" value={formData.khasraNumber}
+                      onChange={handleChange} label="Khasra Number" placeholder="Khasra number" />
+                    <InputField id="khataNumber" name="khataNumber" value={formData.khataNumber}
+                      onChange={handleChange} label="Khata Number" placeholder="Khata number" />
+                  </div>
+                )}
+
+                {/* Currency */}
+                <div className="space-y-1.5 sg-fade-up sg-d4">
+                  <label htmlFor="currency" className="sg-label block">
+                    Currency <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 w-4 h-4" />
+                    <select id="currency" name="currency" value={formData.currency} onChange={handleChange}
                       className="sg-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm appearance-none" required>
-                      <option value="en">English</option>
-                      <option value="hi">Hindi (हिंदी)</option>
-                      <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
-                      <option value="ur">Urdu (اردو)</option>
-                      <option value="bn">Bengali (বাংলা)</option>
+                      <option value="INR">INR - Indian Rupee (₹)</option>
+                      <option value="USD">USD - US Dollar ($)</option>
+                      <option value="EUR">EUR - Euro (€)</option>
+                      <option value="GBP">GBP - British Pound (£)</option>
+                      <option value="PKR">PKR - Pakistani Rupee (Rs)</option>
                     </select>
                   </div>
                 </div>
 
-                {/* Password */}
-                <div className="sg-slide-r sg-d3">
-                  <InputField id="password" name="password" type={showPassword ? 'text' : 'password'}
-                    value={formData.password} onChange={handleChange}
-                    label="Password" icon={Lock} placeholder="Min. 6 characters" required minLength={6}
-                    suffix={
-                      <button type="button" onClick={() => setShowPassword(!showPassword)}
-                        className="text-emerald-300/70 hover:text-white transition-colors">
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    } />
-                </div>
+                {/* Role hint banners */}
+                {isDoctor && (
+                  <div className="sg-fade-up sg-role-banner flex items-start gap-3 rounded-2xl px-4 py-3.5 text-sm text-blue-700">
+                    <span className="text-xl shrink-0">🩺</span>
+                    <div>
+                      <p className="font-bold text-blue-900">Registering as Doctor</p>
+                      <p className="text-xs mt-0.5 text-blue-600">You will see the Orchard Hospital doctor portal. Farm/field management sections are not shown for doctors.</p>
+                    </div>
+                  </div>
+                )}
+                {isGrower && (
+                  <div className="sg-fade-up sg-role-banner flex items-start gap-3 rounded-2xl px-4 py-3.5 text-sm text-emerald-700">
+                    <span className="text-xl shrink-0">🌾</span>
+                    <div>
+                      <p className="font-bold text-emerald-900">Registering as Grower</p>
+                      <p className="text-xs mt-0.5 text-emerald-600">Full access to orchard management, map viewer, and doctor consultations.</p>
+                    </div>
+                  </div>
+                )}
 
-                {/* Confirm Password */}
-                <div className="sg-slide-r sg-d3">
-                  <InputField id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword} onChange={handleChange}
-                    label="Confirm Password" icon={Lock} placeholder="Re-enter password" required
-                    suffix={
-                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="text-emerald-300/70 hover:text-white transition-colors">
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    } />
-                </div>
-              </div>
-
-              {/* Address */}
-              <div className="space-y-1.5 sg-fade-up sg-d3">
-                <label htmlFor="address" className="sg-label block">
-                  Address <span className="text-red-400">*</span>
+                {/* Terms */}
+                <label className="sg-fade-up sg-terms flex items-start gap-3 p-4 rounded-2xl transition-colors cursor-pointer">
+                  <input type="checkbox" id="terms" checked={acceptedTerms}
+                    onChange={e => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded accent-emerald-400" required />
+                  <span className="text-sm font-semibold" style={{ color: '#052e16' }}>
+                    I agree to the{' '}
+                    <button type="button" onClick={() => setShowTermsModal(true)}
+                      className="font-extrabold underline underline-offset-2 transition-colors"
+                      style={{ color: '#065f46' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#000')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#065f46')}>
+                      Terms and Conditions
+                    </button>
+                    {' '}and{' '}
+                    <button type="button" onClick={() => setShowTermsModal(true)}
+                      className="font-extrabold underline underline-offset-2 transition-colors"
+                      style={{ color: '#065f46' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#000')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#065f46')}>
+                      Privacy Policy
+                    </button>
+                  </span>
                 </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3 text-emerald-300/60 w-4 h-4" />
-                  <textarea id="address" name="address" value={formData.address} onChange={handleChange}
-                    rows={3} placeholder="Enter your complete address" required
-                    className="sg-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm resize-none" />
-                </div>
-              </div>
 
-              {/* Grower: Khasra & Khata */}
-              {isGrower && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sg-fade-up">
-                  <InputField id="khasraNumber" name="khasraNumber" value={formData.khasraNumber}
-                    onChange={handleChange} label="Khasra Number" placeholder="Khasra number" />
-                  <InputField id="khataNumber" name="khataNumber" value={formData.khataNumber}
-                    onChange={handleChange} label="Khata Number" placeholder="Khata number" />
-                </div>
-              )}
+                {errorMessage && (
+                  <div className="sg-fade-up flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {errorMessage}
+                  </div>
+                )}
 
-              {/* Currency */}
-              <div className="space-y-1.5 sg-fade-up sg-d4">
-                <label htmlFor="currency" className="sg-label block">
-                  Currency <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-300/60 w-4 h-4" />
-                  <select id="currency" name="currency" value={formData.currency} onChange={handleChange}
-                    className="sg-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm appearance-none" required>
-                    <option value="INR">INR - Indian Rupee (₹)</option>
-                    <option value="USD">USD - US Dollar ($)</option>
-                    <option value="EUR">EUR - Euro (€)</option>
-                    <option value="GBP">GBP - British Pound (£)</option>
-                    <option value="PKR">PKR - Pakistani Rupee (Rs)</option>
-                  </select>
-                </div>
-              </div>
+                <button type="submit" disabled={loading}
+                  className="sg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30">
+                  {loading ? (
+                    <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      {authMethod === 'email' ? 'Signing up…' : 'Sending OTP…'}
+                    </>
+                  ) : authMethod === 'email' ? 'Sign Up' : 'Send OTP'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-5">
+                <div className="sg-fade-up text-center">
+                  <p className="text-sm text-emerald-700 mb-4">
+                    We've sent an OTP to <strong>{formData.phone}</strong>
+                  </p>
 
-              {/* Role hint banners — glassy style */}
-              {isDoctor && (
-                <div className="sg-fade-up sg-role-banner flex items-start gap-3 rounded-2xl px-4 py-3.5 text-sm text-blue-700">
-                  <span className="text-xl shrink-0">🩺</span>
-                  <div>
-                    <p className="font-bold text-blue-900">Registering as Doctor</p>
-                    <p className="text-xs mt-0.5 text-blue-600">You will see the Orchard Hospital doctor portal. Farm/field management sections are not shown for doctors.</p>
+                  {/* OTP Input */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="otp" className="sg-label block">
+                      Enter OTP <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      id="otp"
+                      type="text"
+                      value={otp}
+                      onChange={e => setOtp(e.target.value)}
+                      placeholder="Enter 6-digit OTP"
+                      required
+                      maxLength={6}
+                      className="sg-input w-full px-4 py-2.5 rounded-xl text-sm text-center text-2xl tracking-widest"
+                    />
                   </div>
                 </div>
-              )}
-              {isGrower && (
-                <div className="sg-fade-up sg-role-banner flex items-start gap-3 rounded-2xl px-4 py-3.5 text-sm text-emerald-700">
-                  <span className="text-xl shrink-0"></span>
-                  <div>
-                    <p className="font-bold text-emerald-900">Registering as Grower</p>
-                    <p className="text-xs mt-0.5 text-emerald-600">Full access to orchard management, map viewer, and doctor consultations.</p>
+
+                {errorMessage && (
+                  <div className="sg-fade-up flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {errorMessage}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Terms */}
-              <label className="sg-fade-up sg-terms flex items-start gap-3 p-4 rounded-2xl transition-colors cursor-pointer">
-                <input type="checkbox" id="terms" checked={acceptedTerms}
-                  onChange={e => setAcceptedTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded accent-emerald-400" required />
-                <span className="text-sm font-semibold" style={{ color: '#052e16' }}>
-                  I agree to the{' '}
-                  <button type="button" onClick={() => setShowTermsModal(true)}
-                    className="font-extrabold underline underline-offset-2 transition-colors"
-                    style={{ color: '#065f46' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#000')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#065f46')}>
-                    Terms and Conditions
-                  </button>
-                  {' '}and{' '}
-                  <button type="button" onClick={() => setShowTermsModal(true)}
-                    className="font-extrabold underline underline-offset-2 transition-colors"
-                    style={{ color: '#065f46' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#000')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#065f46')}>
-                    Privacy Policy
-                  </button>
-                </span>
-              </label>
+                <button type="submit" disabled={loading}
+                  className="sg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30">
+                  {loading ? (
+                    <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Verifying…</>
+                  ) : 'Verify OTP'}
+                </button>
 
-              {errorMessage && (
-                <div className="sg-fade-up flex items-center gap-2 px-4 py-3 bg-red-900/40 border border-red-400/40 backdrop-blur-sm rounded-xl text-sm text-red-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                  {errorMessage}
-                </div>
-              )}
-
-              <button type="submit" disabled={loading}
-                className="sg-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-extrabold text-base shadow-lg shadow-emerald-900/40 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-400/30">
-                {loading ? (
-                  <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Creating Account…</>
-                ) : 'Create Account'}
-              </button>
-            </form>
+                <button type="button" onClick={() => setOtpSent(false)}
+                  className="w-full text-sm text-emerald-600 hover:text-emerald-800 font-semibold transition-colors">
+                  ← Back to signup
+                </button>
+              </form>
+            )}
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-emerald-950/80">
+              <p className="text-sm text-gray-700">
                 Already have an account?{' '}
-                <Link to="/login" className="text-emerald-300 hover:text-white font-bold transition-colors">Sign In</Link>
+                <Link to="/login" className="text-emerald-600 hover:text-emerald-800 font-bold transition-colors">Sign In</Link>
               </p>
             </div>
           </div>
@@ -539,7 +847,7 @@ const Signup: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Terms Modal (glassy) ── */}
+      {/* ── Terms Modal ── */}
       {showTermsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowTermsModal(false)} />
@@ -551,7 +859,6 @@ const Signup: React.FC = () => {
                  border: '1.5px solid rgba(52,211,153,0.45)',
                  boxShadow: '0 24px 64px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.25)',
                }}>
-            {/* Shimmer accent */}
             <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-3xl sg-shimmer opacity-70"/>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-extrabold" style={{ color: '#052e16' }}>Terms and Conditions</h2>

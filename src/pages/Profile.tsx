@@ -176,12 +176,9 @@ const Profile: React.FC = () => {
         <div className="absolute -top-10 -left-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute -bottom-12 -right-12 w-60 h-60 rounded-full bg-white/5 pointer-events-none" />
         <div className="relative px-8 py-10 flex flex-col items-center text-center gap-4">
-          <div className="pf-scale-in pf-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
-            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
-            {isDoctor ? 'Doctor Account' : 'Grower Account'}
-          </div>
+          
           <h1 className="pf-fade-up pf-d2 text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-            {isDoctor ? '🩺' : '🌳'} Edit Profile
+            {isDoctor ? '' : ''} Edit Profile
           </h1>
           <p className="pf-fade-up pf-d3 text-base sm:text-lg text-white/80 font-medium max-w-md">
             {isDoctor ? 'Manage your doctor profile and account settings' : 'Manage your orchard profile and account details'}
@@ -324,7 +321,7 @@ const Profile: React.FC = () => {
               <div className="flex justify-end gap-3">
                 <button type="button"
                   className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-colors">
-                  Cancel
+                  X
                 </button>
                 <button type="submit" disabled={saving}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, TreePine, TriangleAlert as AlertTriangle, Cloud, TrendingUp, Calendar, UserCircle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -11,86 +10,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { AlertCircle, Droplet, CheckCircle, XCircle, HelpCircle, Bug, ShieldAlert } from 'lucide-react';
 import { skaustSprayTemplate2026Chemicals } from '../data/skaustSprayTemplate2026';
 
-/* ─── SkuastAdvisory-style Glass + Animation CSS ─── */
+/* ─── SkuastAdvisory-style Professional Glass CSS (No Animations) ─── */
 const DASH_STYLES = `
-@keyframes dashFadeUp {
-  from { opacity:0; transform:translateY(24px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes dashFadeDown {
-  from { opacity:0; transform:translateY(-18px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes dashScaleIn {
-  from { opacity:0; transform:scale(0.90); }
-  to   { opacity:1; transform:scale(1); }
-}
-@keyframes dashSlideRight {
-  from { opacity:0; transform:translateX(-20px); }
-  to   { opacity:1; transform:translateX(0); }
-}
-@keyframes dashGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.25); }
-  50%       { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
-}
-@keyframes dashPulseRing {
-  0%   { transform:scale(1);   opacity:0.8; }
-  100% { transform:scale(1.7); opacity:0; }
-}
-@keyframes dashShimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position:  400px 0; }
-}
-@keyframes dashLeafSway {
-  0%, 100% { transform: rotate(-4deg); }
-  50%       { transform: rotate(4deg); }
-}
-@keyframes dashHeaderGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes dashFloat {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
-}
-@keyframes dashWeatherPop {
-  0%   { transform: scale(0.8) rotate(-5deg); opacity: 0; }
-  60%  { transform: scale(1.08) rotate(2deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
-}
-@keyframes dashBarGrow {
-  from { width: 0%; }
-  to   { width: var(--bar-w); }
-}
-@keyframes dashPulseSoft {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.6; }
-}
 
-.dash-fade-up   { animation: dashFadeUp     0.6s  cubic-bezier(.22,1,.36,1) both; }
-.dash-fade-down { animation: dashFadeDown   0.55s cubic-bezier(.22,1,.36,1) both; }
-.dash-scale-in  { animation: dashScaleIn    0.5s  cubic-bezier(.22,1,.36,1) both; }
-.dash-slide-r   { animation: dashSlideRight 0.5s  cubic-bezier(.22,1,.36,1) both; }
-.dash-glow      { animation: dashGlow 2.8s ease-in-out infinite; }
-.dash-float     { animation: dashFloat 3.5s ease-in-out infinite; }
-.dash-weather   { animation: dashWeatherPop 0.55s cubic-bezier(.34,1.56,.64,1) both; }
-.dash-pulse-soft{ animation: dashPulseSoft 2.4s ease-in-out infinite; }
+.dash-weather   { }
+. -soft{ }
 
-.dash-d0  { animation-delay:0s;    }
-.dash-d1  { animation-delay:.08s;  }
-.dash-d2  { animation-delay:.16s;  }
-.dash-d3  { animation-delay:.24s;  }
-.dash-d4  { animation-delay:.32s;  }
-.dash-d5  { animation-delay:.40s;  }
-.dash-d6  { animation-delay:.48s;  }
-.dash-d7  { animation-delay:.56s;  }
-
-/* ─── Animated gradient header banner ─── */
+/* ─── Professional gradient header banner ─── */
 .dash-header-banner {
-  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981, #34d399, #6ee7b7, #10b981, #047857);
-  background-size: 300% 300%;
-  animation: dashHeaderGradient 8s ease infinite;
+  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981);
 }
 
 /* ─── Glass card ─── */
@@ -100,7 +28,7 @@ const DASH_STYLES = `
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.6);
   box-shadow: 0 4px 24px rgba(34,197,94,0.07), 0 1px 3px rgba(0,0,0,0.04);
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+
 }
 .dash-glass-card:hover {
   transform: translateY(-4px);
@@ -115,7 +43,7 @@ const DASH_STYLES = `
   -webkit-backdrop-filter: blur(10px);
   border: 1.5px solid rgba(255,255,255,0.7);
   box-shadow: 0 4px 20px rgba(34,197,94,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  transition: transform .22s ease, box-shadow .22s ease;
+
 }
 .dash-stat-card:hover {
   transform: translateY(-5px) scale(1.025);
@@ -129,7 +57,7 @@ const DASH_STYLES = `
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.6);
   box-shadow: 0 3px 14px rgba(99,102,241,0.07);
-  transition: transform .2s ease, box-shadow .2s ease;
+
 }
 .dash-weather-card:hover {
   transform: translateY(-5px) scale(1.04);
@@ -141,7 +69,7 @@ const DASH_STYLES = `
 .dash-field-card {
   background: rgba(255,255,255,0.92);
   border: 1.5px solid #e5e7eb;
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+
   position: relative;
   overflow: hidden;
 }
@@ -152,30 +80,26 @@ const DASH_STYLES = `
   height:3px;
   background:linear-gradient(90deg,#10b981,#059669,#34d399);
   opacity:0;
-  transition:opacity .22s ease;
+
 }
 .dash-field-card:hover { transform:translateY(-3px) scale(1.015); box-shadow:0 8px 28px rgba(34,197,94,0.15); border-color:#86efac; }
 .dash-field-card:hover::before { opacity:1; }
 
 /* ─── Pulse ring live badge ─── */
-.dash-pulse {
-  position: relative;
-}
-.dash-pulse::before {
+. ::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
   background: rgba(34,197,94,0.5);
-  animation: dashPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite;
+
 }
 
 /* ─── Leaf sway ─── */
-.dash-leaf { display:inline-block; animation: dashLeafSway 2.8s ease-in-out infinite; }
 
 /* ─── RAG orb hover ─── */
 .dash-rag-orb {
-  transition: transform .2s ease, box-shadow .2s ease;
+
 }
 .dash-rag-orb:hover {
   transform: scale(1.12);
@@ -183,7 +107,7 @@ const DASH_STYLES = `
 
 /* ─── Smart action row hover ─── */
 .dash-action-row {
-  transition: background .2s ease, transform .2s ease, padding-left .2s ease;
+
 }
 .dash-action-row:hover {
   background: linear-gradient(90deg, #f0fdf4, #dcfce7) !important;
@@ -195,7 +119,7 @@ const DASH_STYLES = `
 .dash-activity-row {
   position: relative;
   overflow: hidden;
-  transition: background .2s ease, transform .2s ease;
+
 }
 .dash-activity-row:hover {
   background: #f0fdf4 !important;
@@ -208,11 +132,11 @@ const DASH_STYLES = `
   background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.5) 50%,transparent 100%);
   background-size:200% 100%;
   opacity:0;
-  transition:opacity .3s;
+
 }
 .dash-activity-row:hover::after {
   opacity:1;
-  animation: dashShimmer 0.8s linear;
+
 }
 
 /* ─── Page background ─── */
@@ -223,7 +147,7 @@ const DASH_STYLES = `
 
 /* ─── Alert row ─── */
 .dash-alert-row {
-  transition: background .2s ease, transform .2s ease;
+
 }
 .dash-alert-row:hover {
   background: rgba(254,242,242,0.9) !important;
@@ -243,7 +167,9 @@ const DASH_STYLES = `
   /* Weather grid: 2×4 on phones */
   .dash-weather-grid { grid-template-columns: repeat(2, 1fr) !important; }
   /* Hero banner rounded corners tighter */
-  .dash-header-banner { border-radius: 1.25rem !important; }
+  .dash-header-banner {
+  background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981);
+}
   /* Stat icon smaller on phone */
   .dash-stat-icon { width: 2.25rem !important; height: 2.25rem !important; }
 }
@@ -861,10 +787,10 @@ const Dashboard: React.FC = () => {
   const totalTrees = treeTags.length;
 
   const stats = [
-    { title: 'Total Fields', value: fields.length,            icon: '🌿', color: 'from-emerald-500 to-green-400',  delay: 'dash-d0', onClick: () => navigate('/fields') },
-    { title: 'Total Trees',  value: totalTrees,                icon: '🌳', color: 'from-teal-500 to-emerald-400',  delay: 'dash-d1', onClick: () => taggedTreesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-    { title: 'Active Alerts',value: scoutingAlerts.length,     icon: '⚠️', color: 'from-orange-400 to-amber-400',  delay: 'dash-d2', onClick: () => navigate('/tree-scouting') },
-    { title: 'Temperature',  value: weatherLoading ? '…' : (weather ? `${weather.temperature}°C` : (weatherError || 'N/A')), icon: '🌡️', color: 'from-violet-500 to-purple-400', delay: 'dash-d3', onClick: undefined },
+    { title: 'Total Fields', value: fields.length,            icon: '🌿', color: 'from-emerald-500 to-green-400',  delay: ' ', onClick: () => navigate('/fields') },
+    { title: 'Total Trees',  value: totalTrees,                icon: '🌳', color: 'from-teal-500 to-emerald-400',  delay: ' ', onClick: () => taggedTreesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+    { title: 'Active Alerts',value: scoutingAlerts.length,     icon: '⚠️', color: 'from-orange-400 to-amber-400',  delay: ' ', onClick: () => navigate('/tree-scouting') },
+    { title: 'Temperature',  value: weatherLoading ? '…' : (weather ? `${weather.temperature}°C` : (weatherError || 'N/A')), icon: '🌡️', color: 'from-violet-500 to-purple-400', delay: ' ', onClick: undefined },
   ];
 
   const ragColor = {
@@ -907,7 +833,7 @@ const Dashboard: React.FC = () => {
         {/* ══════════════════════════════════════════
             HERO HEADER
         ══════════════════════════════════════════ */}
-        <div className="dash-fade-down dash-d0 relative overflow-hidden rounded-2xl sm:rounded-3xl dash-header-banner shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl dash-header-banner shadow-2xl">
           {/* Decorative blobs — lighter on mobile */}
           <div className="hidden sm:block absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
           <div className="hidden sm:block absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
@@ -916,12 +842,12 @@ const Dashboard: React.FC = () => {
           <div className="relative px-4 sm:px-8 lg:px-12 py-7 sm:py-10 flex flex-col items-center text-center gap-2 sm:gap-3 md:gap-4">
             {/* Live badge */}
             <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-emerald-100 text-[11px] sm:text-xs font-semibold tracking-wide">
-              <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 dash-pulse" />
-              Season 2026 · Live
+              <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300" />
+              Season 2026
             </div>
 
             <h1 className="dash-hero-title text-2xl sm:text-4xl md:text-5xl font-black text-white drop-shadow-lg tracking-tight leading-tight">
-              <span className="dash-leaf"></span>{' '}
+              <span className=""></span>{' '}
               Orchard Dashboard
             </h1>
 
@@ -948,7 +874,7 @@ const Dashboard: React.FC = () => {
             <div
               key={i}
               onClick={s.onClick}
-              className={`dash-scale-in ${s.delay} dash-stat-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 flex flex-col items-center text-center ${s.onClick ? 'cursor-pointer' : ''}`}
+              className={` ${s.delay} dash-stat-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 flex flex-col items-center text-center ${s.onClick ? 'cursor-pointer' : ''}`}
             >
               <div className={`dash-stat-icon w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center text-lg sm:text-xl md:text-2xl shadow-md mb-2 sm:mb-3`}>
                 {s.icon}
@@ -965,10 +891,10 @@ const Dashboard: React.FC = () => {
         {/* ══════════════════════════════════════════
             HEALTH RAG MATRIX
         ══════════════════════════════════════════ */}
-        <div className="dash-fade-up dash-d2 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+        <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
           <div className="flex flex-col items-center text-center mb-4 sm:mb-5 gap-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-emerald-700 text-xs font-semibold">
-              🔬 Health RAG Matrix
+               Health RAG Matrix
             </div>
             <p className="text-xs text-gray-400 mt-1">Real-time soil &amp; water status</p>
           </div>
@@ -1003,12 +929,10 @@ const Dashboard: React.FC = () => {
         {/* ══════════════════════════════════════════
             MAP SECTION
         ══════════════════════════════════════════ */}
-        <div className="dash-fade-up dash-d3">
+        <div className="">
           <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="flex flex-col items-center text-center mb-4 sm:mb-5 gap-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-md">
-                <span className="text-xl sm:text-2xl">🗺️</span>
-              </div>
+             
               <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
                 Orchard Map Overview
               </h2>
@@ -1033,7 +957,7 @@ const Dashboard: React.FC = () => {
             ) : fields.length === 0 ? (
               <div className="w-full h-56 sm:h-72 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center px-4">
                 <div className="text-center">
-                  <div className="text-4xl sm:text-5xl dash-float mb-3 sm:mb-4">🌳</div>
+                  <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">🌳</div>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-1">No Orchards Mapped Yet</h3>
                   <p className="text-xs sm:text-sm text-gray-400 mb-4">Your saved orchards will appear here on the map</p>
                   <Button onClick={() => navigate('/fields')} size="sm">
@@ -1061,7 +985,7 @@ const Dashboard: React.FC = () => {
                   return (
                     <div
                       key={field.id}
-                      className={`dash-field-card dash-scale-in shrink-0 w-44 sm:w-52 p-3 sm:p-4 rounded-xl sm:rounded-2xl cursor-pointer ${selectedFieldId === field.id ? 'border-green-500 bg-green-50/80 shadow-md' : ''}`}
+                      className={`dash-field-card shrink-0 w-44 sm:w-52 p-3 sm:p-4 rounded-xl sm:rounded-2xl cursor-pointer ${selectedFieldId === field.id ? 'border-green-500 bg-green-50/80 shadow-md' : ''}`}
                       style={{ animationDelay: `${fi * 0.07}s` }}
                       onClick={() => handleViewField(field)}
                     >
@@ -1259,7 +1183,7 @@ const Dashboard: React.FC = () => {
         )}
 
         {forecast.length > 0 && (
-          <div className="dash-fade-up dash-d4 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+          <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6 gap-2">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-400 flex items-center justify-center shadow-md">
                 <span className="text-xl sm:text-2xl">🌤️</span>
@@ -1314,7 +1238,7 @@ const Dashboard: React.FC = () => {
 
             {/* Irrigation banner + pills */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-start sm:items-center justify-between">
-              <div className="dash-pulse-soft flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold w-full sm:w-auto">
+              <div className="-soft flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold w-full sm:w-auto">
                 {getIrrigationAdvice()}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1335,10 +1259,10 @@ const Dashboard: React.FC = () => {
         {/* ══════════════════════════════════════════
             SMART ACTION CENTER
         ══════════════════════════════════════════ */}
-        <div className="dash-fade-up dash-d5 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+        <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
           <div className="flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6 gap-2">
             <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 bg-gradient-to-r from-emerald-500 to-green-400 rounded-full text-white text-xs font-bold shadow-md">
-              <span className="relative inline-block w-2 h-2 rounded-full bg-white dash-pulse" />
+              <span className="relative inline-block w-2 h-2 rounded-full bg-white" />
               AI-Powered
             </div>
             <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
@@ -1360,7 +1284,7 @@ const Dashboard: React.FC = () => {
               {smartActions.map((action, idx) => (
                 <div
                   key={idx}
-                  className={`dash-action-row dash-slide-r dash-d${idx + 1} flex flex-col sm:flex-row items-start gap-2.5 sm:gap-3 md:gap-4 p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl border`}
+                  className={`dash-action-row dash-d${idx + 1} flex flex-col sm:flex-row items-start gap-2.5 sm:gap-3 md:gap-4 p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl border`}
                   style={{ background: 'rgba(240,253,244,0.8)', borderColor: '#bbf7d0' }}
                 >
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center text-lg sm:text-xl shadow-md shrink-0">
@@ -1413,7 +1337,7 @@ const Dashboard: React.FC = () => {
             PROFILE COMPLETION
         ══════════════════════════════════════════ */}
         {profileCompletion < 100 && (
-          <div className="dash-fade-up dash-d5 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+          <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
               <div className="flex items-start gap-3 sm:gap-4 flex-1">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-md shrink-0">
@@ -1460,11 +1384,9 @@ const Dashboard: React.FC = () => {
         ══════════════════════════════════════════ */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* Production Overview */}
-          <div className="dash-fade-up dash-d5 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+          <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="flex flex-col items-center text-center mb-3 sm:mb-4 gap-2">
-              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center text-lg sm:text-xl shadow-md">
-                📊
-              </div>
+             
               <h3 className="text-base sm:text-lg font-extrabold text-gray-900">Production Overview</h3>
               <p className="text-[10px] sm:text-xs text-gray-400">No. of trees vs infected vs severe</p>
             </div>
@@ -1552,11 +1474,9 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Growth Analytics */}
-          <div className="dash-fade-up dash-d6 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+          <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="flex flex-col items-center text-center mb-3 sm:mb-4 gap-2">
-              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-400 flex items-center justify-center text-lg sm:text-xl shadow-md">
-                🌳
-              </div>
+             
               <h3 className="text-base sm:text-lg font-extrabold text-gray-900">Growth Analytics</h3>
               <p className="text-xs text-gray-400">Tree scouting health distribution</p>
             </div>
@@ -1623,11 +1543,9 @@ const Dashboard: React.FC = () => {
         {/* ══════════════════════════════════════════
             RECENT ACTIVITY
         ══════════════════════════════════════════ */}
-        <div className="dash-fade-up dash-d6 dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
+        <div className="dash-glass-card rounded-2xl p-4 sm:p-5 md:p-6">
           <div className="flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6 gap-1">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-400 flex items-center justify-center shadow-md text-lg sm:text-xl">
-              📋
-            </div>
+           
             <h3 className="text-base sm:text-lg md:text-xl font-extrabold text-gray-900 mt-1 sm:mt-2">Recent Activity</h3>
           </div>
 
@@ -1637,7 +1555,7 @@ const Dashboard: React.FC = () => {
 
           {activities.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 sm:p-8 text-center">
-              <div className="text-3xl sm:text-4xl dash-float mb-2">📅</div>
+              <div className="text-3xl sm:text-4xl mb-2">📅</div>
               <p className="text-xs sm:text-sm text-gray-400">No recent activity yet.</p>
             </div>
           ) : (
@@ -1645,11 +1563,11 @@ const Dashboard: React.FC = () => {
               {activities.map((activity, ai) => (
                 <div
                   key={activity.id}
-                  className="dash-activity-row dash-slide-r flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl border border-transparent"
+                  className="dash-activity-row flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl border border-transparent"
                   style={{ animationDelay: `${ai * 0.1}s`, background: getActivityBg(activity.kind) }}
                 >
                   <div
-                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0 relative dash-pulse"
+                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0 relative"
                     style={{ background: getActivityDotColor(activity.kind) }}
                   />
                   <div className="flex-1 min-w-0">
@@ -1675,7 +1593,7 @@ const Dashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setScoutingModalTree(null); setSelectedTreeId(null); }} />
           <div
-            className="dash-scale-in relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+            className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
             style={{ maxHeight: '92vh' }}
           >
             {/* Modal header */}

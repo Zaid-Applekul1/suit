@@ -1,4 +1,3 @@
-
 /**
  * FinancialLedger.tsx  — Supabase-connected version
  *
@@ -434,47 +433,29 @@ function ActivityDetailPanel({ config, activities, onDelete, mutating }: { confi
 /* ================= SKUAST-STYLE ANIMATION STYLES ================= */
 
 const FL_STYLES = `
-@keyframes fldFadeUp   { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-@keyframes fldFadeDown { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:translateY(0)} }
-@keyframes fldScaleIn  { from{opacity:0;transform:scale(0.90)} to{opacity:1;transform:scale(1)} }
-@keyframes fldSlideR   { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
-@keyframes fldGradientShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-@keyframes fldLeafSway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
-@keyframes fldPulseRing{ 0%{transform:scale(1);opacity:.8} 100%{transform:scale(1.6);opacity:0} }
-@keyframes fldGlow     { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.25)} 50%{box-shadow:0 0 0 10px rgba(34,197,94,0)} }
-@keyframes fldShimmer  { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
-@keyframes slideDown   { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
 
-.fld-fade-up  { animation:fldFadeUp   0.6s cubic-bezier(.22,1,.36,1) both; }
-.fld-fade-dn  { animation:fldFadeDown 0.55s cubic-bezier(.22,1,.36,1) both; }
-.fld-scale-in { animation:fldScaleIn  0.5s cubic-bezier(.22,1,.36,1) both; }
-.fld-slide-r  { animation:fldSlideR   0.5s cubic-bezier(.22,1,.36,1) both; }
+.fld-fade-dn  { }
 
-.fld-d0{animation-delay:0s} .fld-d1{animation-delay:.08s} .fld-d2{animation-delay:.16s}
-.fld-d3{animation-delay:.24s} .fld-d4{animation-delay:.32s}
-
-/* Animated gradient banner */
+/* Professional gradient banner */
 .fld-hero-banner {
   background: linear-gradient(135deg, #064e3b, #065f46, #047857, #059669, #10b981, #34d399, #10b981, #047857);
   background-size: 300% 300%;
-  animation: fldGradientShift 8s ease infinite;
+
 }
 
 /* Leaf sway */
-.fld-leaf { display:inline-block; animation:fldLeafSway 3s ease-in-out infinite; transform-origin:bottom center; }
 
 /* Pulse indicator */
-.fld-pulse::before { content:''; position:absolute; inset:0; border-radius:50%; background:rgba(167,243,208,0.5); animation:fldPulseRing 1.6s cubic-bezier(.215,.61,.355,1) infinite; }
+. ::before { content:''; position:absolute; inset:0; border-radius:50%; background:rgba(167,243,208,0.5); }
 
 /* Shimmer bar */
-.fld-shimmer { background:linear-gradient(90deg,rgba(167,243,208,0.2) 25%,rgba(167,243,208,0.55) 50%,rgba(167,243,208,0.2) 75%); background-size:400px 100%; animation:fldShimmer 2s ease-in-out infinite; }
 
 /* Summary card hover */
-.fld-summary-card { transition:transform .2s ease, box-shadow .2s ease; }
+.fld-summary-card { }
 .fld-summary-card:hover { transform:translateY(-4px); box-shadow:0 16px 40px rgba(0,0,0,0.18); }
 
 /* Tab button transition */
-.fld-tab { transition:all .2s cubic-bezier(.22,1,.36,1); }
+.fld-tab { }
 
 /* Responsive helpers */
 @media (max-width:640px) {
@@ -482,8 +463,6 @@ const FL_STYLES = `
 }
 
 /* Image modal entrance animation */
-@keyframes fldModalIn { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
-.fld-modal-img { animation: fldModalIn 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
 
 /* Cursor zoom */
 .cursor-zoom-in { cursor: zoom-in; }
@@ -699,7 +678,7 @@ export default function FinancialLedger() {
       // Same worker → add new work entry (days accumulate)
       setWorkerMsg({ type: 'info', text: `Adding new work entry for ${existing.name}. Days will be added to existing total.` });
     } else {
-      setWorkerMsg({ type: 'success', text: `New worker "${wName}" registered.` });
+      setWorkerMsg({ type: 'success', text: `New worker"${wName}" registered.` });
     }
 
     await db.addWorker({
@@ -763,20 +742,17 @@ export default function FinancialLedger() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── SKUAST-STYLE HERO HEADER ── */}
-      <div className="fld-fade-dn fld-d0 relative overflow-hidden rounded-b-3xl fld-hero-banner shadow-2xl">
-        <div className="h-1 w-full fld-shimmer"/>
+      <div className="fld-fade-dn relative overflow-hidden rounded-b-3xl fld-hero-banner shadow-2xl">
+        <div className="h-1 w-full"/>
         <div className="absolute -top-10 -left-10 w-52 h-52 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute top-6 right-28 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
         <div className="relative px-6 py-9 sm:py-11 flex flex-col items-center text-center gap-4">
-          <div className="fld-scale-in fld-d1 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full text-xs font-bold text-white/90 tracking-widest uppercase">
-            <span className="relative inline-block w-2 h-2 rounded-full bg-emerald-300 fld-pulse" />
-            Season 2025–2026 · Live
-          </div>
-          <h1 className="fld-fade-up fld-d2 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
-            <span className="fld-leaf"></span> Financial Ledger
+          
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-xl leading-tight">
+            <span className=""></span> Financial Ledger
           </h1>
-          <p className="fld-fade-up fld-d3 text-emerald-100/90 text-sm sm:text-base font-medium max-w-sm">
+          <p className="text-emerald-100/90 text-sm sm:text-base font-medium max-w-sm">
             Apple Orchard · Real-time profit &amp; expense tracking
           </p>
         </div>
@@ -797,15 +773,15 @@ export default function FinancialLedger() {
 
       {/* ── SUMMARY CARDS ── */}
       <div className="px-4 sm:px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="fld-slide-r fld-d1 fld-summary-card">
+        <div className="fld-summary-card">
           <SummaryCard label="Total Expenses" value={db.totalExpenses} color="from-red-600 to-red-700" icon={TrendingDown}
             sub={`Sprays ₹${fmt(db.totalSprayCost)} + Activities ₹${fmt(db.totalActivityCost)}`} />
         </div>
-        <div className="fld-slide-r fld-d2 fld-summary-card">
+        <div className="fld-summary-card">
           <SummaryCard label="Total Income"   value={db.totalIncome}   color="from-green-600 to-green-700" icon={TrendingUp}
             sub={`${db.income.reduce((s,i)=>s+i.crates,0)} crates · ${fmt(totalYieldKg)} kg`} />
         </div>
-        <div className="fld-slide-r fld-d3 fld-summary-card">
+        <div className="fld-summary-card">
           <SummaryCard label="Net Profit"     value={db.netProfit}
             color={db.netProfit >= 0 ? 'from-blue-600 to-blue-700' : 'from-orange-600 to-orange-700'}
             icon={TrendingUp } sub={`ROI ${roi.toFixed(1)}% · Cost/kg ₹${fmt(costPerKg)}`} />
@@ -814,7 +790,7 @@ export default function FinancialLedger() {
 
       {/* ── TABS ── */}
       <div className="px-4 sm:px-6">
-        <div className="fld-scale-in fld-d2 flex gap-1 sm:gap-1.5 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm overflow-x-auto">
+        <div className="flex gap-1 sm:gap-1.5 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm overflow-x-auto">
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={tab === t.key ? {background:'linear-gradient(135deg,#15803d,#16a34a)',boxShadow:'0 4px 14px rgba(22,163,74,0.35)'} : {}}
@@ -855,8 +831,6 @@ export default function FinancialLedger() {
             {selectedCategoryConfig && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
                    style={{ animation:'slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}>
-                <style>{`@keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
-
                 {/* Panel Header */}
                 <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 gap-2" style={{ background:selectedCategoryConfig.gradient }}>
                   <div className="flex items-center gap-3">
